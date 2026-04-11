@@ -2,16 +2,7 @@
 
 机房服务器与交换机管理工具。
 
-## 架构
-
-```
-frontend/          Vue 3 + Element Plus + Axios
-backend/           Python + FastAPI
-  app/             API 路由、业务逻辑、数据库模型
-  infrastructure/  paramiko SSH（纯函数，与 FastAPI 解耦）
-```
-
-## 快速启动
+## 快速启动（开发模式）
 
 ### 后端
 
@@ -28,13 +19,42 @@ API 地址：`http://localhost:8000`
 
 ```bash
 cd frontend
-npm install
-npm run dev
+pnpm install
+pnpm run dev
 ```
 
 访问：`http://localhost:3000`
 
-（前端已配置代理 `/api` → `localhost:8000`，开发环境无需 CORS 配置。）
+---
+
+## Windows 一键构建（生成 .exe）
+
+### 前置条件
+
+1. **Python 3.10+** — [python.org/downloads](https://python.org/downloads)
+2. **Node.js** — [nodejs.org](https://nodejs.org)（仅构建前端时需要）
+3. 安装构建工具：
+
+```bash
+pip install pyinstaller
+npm install -g pnpm
+```
+
+### 构建
+
+双击运行 `build.bat`，或命令行：
+
+```cmd
+build.bat
+```
+
+输出：`dist/Enviroments/Enviroments.exe`
+
+### 使用
+
+直接双击 `Enviroments.exe`，自动打开浏览器访问 `http://localhost:8000`。
+
+---
 
 ## API 概览
 
@@ -48,26 +68,10 @@ npm run dev
 | GET | /api/v1/servers/:id/status | 检测在线状态 |
 | GET | /api/v1/servers/:id/detail | 通过 SSH 采集详细信息 |
 
-## 数据模型
-
-```
-Server
-├── hostname        主机名
-├── ip              IP 地址
-├── port            SSH 端口
-├── os_type         linux | windows
-├── ssh_username    SSH 用户名
-├── ssh_password    SSH 密码（可选）
-├── ssh_key_file    SSH 密钥路径（可选）
-├── tags            标签（逗号分隔）
-├── description     备注
-├── cached_*        最近采集的系统信息
-└── is_online       在线状态
-```
-
 ## MVP 功能
 
 - ✅ 服务器列表（增删改查）
 - ✅ 在线状态检测（TCP 连接）
 - ✅ 详细信息采集（CPU、内存、网卡 — Linux/Windows）
 - ✅ 标签管理
+- ❌ 交换机管理（后续版本）

@@ -1,28 +1,32 @@
+import os
+import sys
+
+# Determine base path
+if getattr(sys, 'frozen', False):
+    BASE_DIR = sys._MEIPASS
+else:
+    # backend/app/main.py → project root (3 levels up)
+    BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+FRONTEND_DIST = os.path.join(BASE_DIR, "frontend", "dist")
+
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from app.core.database import init_db
 from app.api.v1.routers import servers
 
-app = FastAPI(title="Enviroments API", version="1.0.0", description="Server & switch management")
+app = FastAPI(title="Enviroments", version="1.0.0")
 
-# CORS — allow frontend dev server
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Startup
 @app.on_event("startup")
 def on_startup():
     init_db()
 
-# Include routers
 app.include_router(servers.router, prefix="/api/v1")
 
+@app.get("/")
+def root():
+    return FileResponse(os.path.join(FRONTEND_DIST, "index.html"))
 
-@app.get("/health")
-def health():
-    return {"status": "ok"}
+@app.get("/assets/{filename}")
+def assets(filename: str):
+    return FileResponse(os.path.join(FRONTEND_DIST, "assets", filename))
