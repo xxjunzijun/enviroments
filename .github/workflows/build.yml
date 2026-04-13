@@ -1,0 +1,83 @@
+name: Build Windows x64 EXE
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Git tag to build (e.g. v0.1.0)'
+        required: false
+        type: string
+
+jobs:
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~\AppData\Local\pip\Cache
+          key: pip-${{ runner.os }}-${{ hashFiles('backend/requirements.txt') }}
+          restore-keys: |
+            pip-${{ runner.os }}-
+
+      - name: Cache pnpm
+        uses: actions/cache@v4
+        with:
+          path: ~\AppData\Local\pnpm\store
+          key: pnpm-${{ runner.os }}-${{ hashFiles('frontend/pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-${{ runner.os }}-
+
+      # ── Frontend ────────────────────────────────────────────────────────────────
+
+      - name: Install frontend deps
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Build frontend
+        working-directory: frontend
+        run: pnpm run build
+
+      # ── Backend ────────────────────────────────────────────────────────────────
+
+      - name: Install Python deps
+        run: pip install -r backend/requirements.txt pyinstaller
+
+      - name: Build with PyInstaller
+        run: |
+          cd backend
+          pyinstaller ../Enviroments.spec --noconfirm --clean
+
+      - name: Rename output
+        shell: bash
+        run: |
+          mv dist/Enviroments dist/Enviroments-${{ github.run_number }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Enviroments-win64-${{ github.run_number }}
+          path: dist/Enviroments-*/
+          retention-days: 14

@@ -13,7 +13,7 @@ FRONTEND_DIST = os.path.join(BASE_DIR, "frontend", "dist")
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from app.core.database import init_db
-from app.api.v1.routers import servers
+from app.api.v1.routers import servers, files
 
 app = FastAPI(title="Enviroments", version="1.0.0")
 
@@ -22,6 +22,7 @@ def on_startup():
     init_db()
 
 app.include_router(servers.router, prefix="/api/v1")
+app.include_router(files.router, prefix="/api/v1")
 
 @app.get("/")
 def root():

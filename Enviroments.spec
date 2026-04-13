@@ -2,7 +2,9 @@ import os
 import sys
 
 block_cipher = None
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "."))
+
+# PyInstaller provides SPECPATH automatically in spec file context
+project_root = os.path.abspath(SPECPATH)
 
 a = Analysis(
     [os.path.join(project_root, "backend", "app", "main.py")],

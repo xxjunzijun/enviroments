@@ -20,3 +20,12 @@ export const servers = {
 
   fetchDetail: (id) => api.get(`/servers/${id}/detail`).then(r => r.data),
 }
+
+export const files = {
+  list: (serverId, path) => api.get(`/servers/${serverId}/files`, { params: { path } }).then(r => r.data),
+
+  downloadUrl: (serverId, path) => `/api/v1/servers/${serverId}/files/download?path=${encodeURIComponent(path)}`,
+
+  upload: (serverId, path, base64Content) =>
+    api.post(`/servers/${serverId}/files`, { path, content: base64Content }).then(r => r.data),
+}

@@ -1,26 +1,20 @@
-# Enviroments - Build Script
-# Run on Windows to generate a standalone .exe
+@echo off
+REM Enviroments - Build Script for Windows
+REM Prerequisites: pip install pyinstaller, Node.js, pnpm
 
-# Prerequisites:
-#   pip install pyinstaller
-#   (Node.js and pnpm for frontend rebuild only)
-
-# Step 1: Build frontend
 echo Building frontend...
-cd frontend
+cd /d "%~dp0frontend"
 call pnpm install
 call pnpm run build
-cd ..
+cd /d "%~dp0"
 
-# Step 2: Build Windows executable
 echo Building Windows executable...
 pyinstaller Enviroments.spec --noconfirm
 
 echo.
 echo ========================================
 echo Build complete!
-echo Output: dist/Enviroments/
-echo   - Enviroments.exe  (main executable)
+echo Output: dist\Enviroments\
 echo.
 echo Run: dist\Enviroments\Enviroments.exe
 echo ========================================
