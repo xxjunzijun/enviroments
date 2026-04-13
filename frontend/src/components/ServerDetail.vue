@@ -131,9 +131,6 @@
           </div>
         </div>
 
-        <div v-if="logTotal > logs.length" style="text-align:center;margin-top:8px">
-          <el-button size="small" @click="loadMoreLogs" :loading="loadingLogs">加载更多</el-button>
-        </div>
       </el-tab-pane>
 
     </el-tabs>
@@ -223,6 +220,9 @@ async function fetchDetail() {
   try {
     detail.value = await serverApi.fetchDetail(props.serverId)
     ElMessage.success('采集成功')
+    if (activeTab.value === 'logs') {
+      await loadLogs()
+    }
   } catch (e) {
     ElMessage.error(e.response?.data?.detail || '采集失败')
   } finally {
@@ -236,6 +236,9 @@ async function checkStatus() {
     detail.value.is_online = result.online
     emit('server-updated')
     ElMessage.success(`${detail.value.ip}: ${result.online ? '在线' : '离线'}`)
+    if (activeTab.value === 'logs') {
+      await loadLogs()
+    }
   } catch {
     ElMessage.error('检测失败')
   }
@@ -377,24 +380,17 @@ function formatSize(bytes) {
 async function loadLogs() {
   if (!props.serverId) return
   loadingLogs.value = true
+  logOffset.value = 0
+  logs.value = []
   try {
-    const data = await logsApi.list(props.serverId, 200, logOffset.value)
-    if (logOffset.value === 0) {
-      logs.value = data.logs
-    } else {
-      logs.value.push(...data.logs)
-    }
+    const data = await logsApi.list(props.serverId, 200, 0)
+    logs.value = data.logs
     logTotal.value = data.total
-    logOffset.value += data.logs.length
   } catch (e) {
     ElMessage.error('加载日志失败')
   } finally {
     loadingLogs.value = false
   }
-}
-
-async function loadMoreLogs() {
-  await loadLogs()
 }
 
 async function clearLogs() {

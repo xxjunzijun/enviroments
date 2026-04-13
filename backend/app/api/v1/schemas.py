@@ -45,6 +45,7 @@ class ServerResponse(BaseModel):
     cached_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
+    cached_os_version: Optional[str] = None  # extracted from cached_info for convenience
 
     class Config:
         from_attributes = True

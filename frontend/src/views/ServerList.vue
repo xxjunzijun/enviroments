@@ -2,6 +2,13 @@
   <div>
     <!-- Toolbar -->
     <div class="toolbar">
+      <el-input
+        v-model="searchQuery"
+        placeholder="搜索 IP / 标签 / 系统版本 / 备注…"
+        style="width: 260px"
+        clearable
+        :prefix-icon="Search"
+      />
       <el-button type="primary" @click="openAdd">
         <el-icon><Plus /></el-icon> 添加服务器
       </el-button>
@@ -11,7 +18,7 @@
     </div>
 
     <!-- Server Table -->
-    <el-table :data="servers" stripe border v-loading="loading" class="server-table" style="width: 100%">
+    <el-table :data="filteredServers" stripe border v-loading="loading" class="server-table" style="width: 100%">
       <el-table-column label="状态" width="80" align="center">
         <template #default="{ row }">
           <el-tag :type="row.is_online ? 'success' : 'danger'" size="small">
@@ -26,7 +33,28 @@
         </template>
       </el-table-column>
       <el-table-column prop="cached_os_version" label="系统版本" min-width="160" show-overflow-tooltip />
-      <el-table-column prop="tags" label="标签" width="160" show-overflow-tooltip />
+      <el-table-column prop="tags" label="标签" width="200">
+        <template #default="{ row }">
+          <template v-if="editingTagsId === row.id">
+            <el-input
+              v-model="editingTagsValue"
+              size="small"
+              style="width: 140px"
+              @keyup.enter="saveTags(row.id)"
+              @blur="saveTags(row.id)"
+              ref="tagsInputRef"
+              placeholder="多个标签用逗号分隔"
+            />
+          </template>
+          <template v-else>
+            <span
+              class="tags-cell"
+              @click="startEditTags(row)"
+              title="点击编辑标签"
+            >{{ row.tags || '—' }}</span>
+          </template>
+        </template>
+      </el-table-column>
       <el-table-column label="操作" width="160" align="center">
         <template #default="{ row }">
           <el-button size="small" type="primary" @click="openDetail(row)">查看详情</el-button>
@@ -75,9 +103,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Refresh } from '@element-plus/icons-vue'
+import { Plus, Refresh, Search } from '@element-plus/icons-vue'
 import { servers as serverApi } from '../api/index.js'
 import ServerDetail from '../components/ServerDetail.vue'
 
@@ -88,6 +116,18 @@ const servers = ref([])
 const editing = ref(null)
 const saving = ref(false)
 const activeServerId = ref(null)
+const searchQuery = ref('')
+
+const filteredServers = computed(() => {
+  if (!searchQuery.value.trim()) return servers.value
+  const q = searchQuery.value.trim().toLowerCase()
+  return servers.value.filter(s =>
+    s.ip?.toLowerCase().includes(q) ||
+    s.tags?.toLowerCase().includes(q) ||
+    s.cached_os_version?.toLowerCase().includes(q) ||
+    s.description?.toLowerCase().includes(q)
+  )
+})
 
 const defaultForm = () => ({
   ip: '',
@@ -102,6 +142,28 @@ const defaultForm = () => ({
 
 const form = ref(defaultForm())
 const formRef = ref(null)
+const editingTagsId = ref(null)
+const editingTagsValue = ref('')
+const tagsInputRef = ref(null)
+
+function startEditTags(row) {
+  editingTagsId.value = row.id
+  editingTagsValue.value = row.tags || ''
+}
+
+async function saveTags(id) {
+  if (editingTagsId.value !== id) return
+  const server = servers.value.find(s => s.id === id)
+  if (!server) return
+  try {
+    await serverApi.update(id, { tags: editingTagsValue.value })
+    server.tags = editingTagsValue.value
+  } catch (e) {
+    ElMessage.error(e.response?.data?.detail || '保存标签失败')
+  } finally {
+    editingTagsId.value = null
+  }
+}
 
 async function loadServers() {
   loading.value = true
@@ -206,5 +268,17 @@ onMounted(loadServers)
 .server-table {
   border-radius: 8px;
   overflow: hidden;
+}
+
+.tags-cell {
+  cursor: pointer;
+  color: #606266;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+.tags-cell:hover {
+  background: #f0f9eb;
+  color: #67c23a;
 }
 </style>

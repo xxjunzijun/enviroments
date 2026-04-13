@@ -13,8 +13,7 @@ from infrastructure.ssh_client import get_server_info_via_ssh, check_online, Ser
 
 router = APIRouter(prefix="/servers", tags=["servers"])
 
-# Log helper — writes JSON lines to backend/log/{server_id}.log
-_LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "log")
+from app.core.scheduler import LOG_DIR as _LOG_DIR
 
 
 def _write_log(server_id: int, payload: dict):
@@ -171,9 +170,11 @@ def fetch_detail(server_id: int, db: Session = Depends(get_db)):
 
 def _to_response(server: Server) -> ServerResponse:
     cached_info = None
+    cached_os_version = None
     if server.cached_info:
         try:
             cached_info = json.loads(server.cached_info)
+            cached_os_version = cached_info.get("os_version") if cached_info else None
         except Exception:
             pass
 
@@ -193,4 +194,5 @@ def _to_response(server: Server) -> ServerResponse:
         cached_at=server.cached_at,
         created_at=server.created_at,
         updated_at=server.updated_at,
+        cached_os_version=cached_os_version,
     )
