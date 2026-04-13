@@ -1,4 +1,5 @@
 import json
+import os
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -11,6 +12,18 @@ from app.api.v1.schemas import (
 from infrastructure.ssh_client import get_server_info_via_ssh, check_online, ServerInfo
 
 router = APIRouter(prefix="/servers", tags=["servers"])
+
+# Log helper — writes JSON lines to backend/log/{server_id}.log
+_LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "log")
+
+
+def _write_log(server_id: int, payload: dict):
+    os.makedirs(_LOG_DIR, exist_ok=True)
+    payload = dict(payload)
+    payload["time"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    line = json.dumps(payload, ensure_ascii=False)
+    with open(os.path.join(_LOG_DIR, f"{server_id}.log"), "a", encoding="utf-8") as f:
+        f.write(line + "\n")
 
 
 @router.get("", response_model=ServerListResponse)
@@ -82,9 +95,16 @@ def check_status(server_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Server not found")
 
     online = check_online(server.ip, port=server.port)
+    was_online = server.is_online
     server.is_online = online
     server.online_checked_at = datetime.utcnow()
     db.commit()
+
+    _write_log(server_id, {
+        "type": "status_check",
+        "online": online,
+        "changed": was_online != online,
+    })
 
     return StatusCheckResponse(
         ip=server.ip,
@@ -110,9 +130,16 @@ def fetch_detail(server_id: int, db: Session = Depends(get_db)):
 
     now = datetime.utcnow()
     if info.error:
+        _write_log(server.id, {
+            "type": "detail_fetch",
+            "online": False,
+            "error": info.error,
+        })
         raise HTTPException(status_code=502, detail=f"SSH error: {info.error}")
 
     snapshot = {
+        "type": "detail_fetch",
+        "online": True,
         "os_type": info.os_type,
         "os_version": info.os_version,
         "cpu": info.cpu_count,
@@ -120,6 +147,8 @@ def fetch_detail(server_id: int, db: Session = Depends(get_db)):
         "interfaces": info.interfaces or [],
         "hostname": info.hostname,
     }
+    _write_log(server.id, snapshot)
+
     server.cached_info = json.dumps(snapshot, ensure_ascii=False)
     server.cached_at = now
     server.is_online = True
