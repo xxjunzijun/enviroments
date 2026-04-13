@@ -69,9 +69,11 @@ jobs:
         run: pip install -r backend/requirements.txt pyinstaller
 
       - name: Build with PyInstaller
+        working-directory: backend
         shell: pwsh
         run: |
-          pyinstaller Enviroments.spec --noconfirm --clean --distpath ./dist --workpath ./build --specpath .
+          # SPECPATH = backend/ dir, outputs to ../dist relative to backend
+          pyinstaller Enviroments.spec --noconfirm --clean --distpath ../dist --workpath ../build
 
       - name: Rename output folder
         shell: pwsh

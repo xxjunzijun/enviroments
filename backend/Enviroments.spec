@@ -3,20 +3,23 @@ import sys
 
 block_cipher = None
 
-# PyInstaller provides SPECPATH automatically in spec file context
-project_root = os.path.abspath(SPECPATH)
+# SPECPATH = backend/ directory (where this spec file lives)
+project_root = os.path.dirname(os.path.abspath(__file__))  # backend/
+frontend_dist = os.path.join(project_root, "..", "frontend", "dist")  # ../frontend/dist
 
 a = Analysis(
-    [os.path.join(project_root, "backend", "app", "main.py")],
+    [os.path.join(project_root, "app", "main.py")],
     binaries=[],
     datas=[
-        (os.path.join(project_root, "frontend", "dist"), "frontend/dist"),
+        (frontend_dist, "frontend/dist"),
     ],
     hiddenimports=[
         "app.api.v1.routers.servers",
+        "app.api.v1.routers.files",
         "app.models.server",
         "app.core.database",
         "infrastructure.ssh_client",
+        "infrastructure.sftp_client",
         "uvicorn",
         "fastapi",
         "sqlalchemy",
