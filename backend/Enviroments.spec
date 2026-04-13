@@ -2,18 +2,15 @@ import os
 
 block_cipher = None
 
-# ── Paths ──────────────────────────────────────────────────────────────────────
-# SPECPATH = directory containing the spec file = backend/
-# SPECPATH is provided automatically by PyInstaller in spec file context
-BACKEND_DIR  = os.path.dirname(os.path.abspath(SPECPATH))   # backend/
-REPO_DIR     = os.path.dirname(BACKEND_DIR)                 # repo root
-FRONTEND_DIR = os.path.join(REPO_DIR, "frontend", "dist")   # repo/frontend/dist
+# working-directory: backend → cwd = backend/
+# All paths are relative to the backend/ directory
+FRONTEND_DIST = os.path.join("..", "frontend", "dist")  # ../frontend/dist
 
 a = Analysis(
-    [os.path.join(BACKEND_DIR, "app", "main.py")],
+    ["app/main.py"],
     binaries=[],
     datas=[
-        (FRONTEND_DIR, "frontend/dist"),
+        (FRONTEND_DIST, "frontend/dist"),
     ],
     hiddenimports=[
         "app.api.v1.routers.servers",
