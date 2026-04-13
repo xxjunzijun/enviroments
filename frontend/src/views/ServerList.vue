@@ -150,14 +150,18 @@ async function saveServer() {
     if (editing.value) {
       await serverApi.update(editing.value, form.value)
       ElMessage.success('更新成功')
+      showAddDialog.value = false
+      editing.value = null
+      form.value = defaultForm()
+      await loadServers()
     } else {
-      await serverApi.create(form.value)
+      const created = await serverApi.create(form.value)
       ElMessage.success('添加成功')
+      showAddDialog.value = false
+      form.value = defaultForm()
+      await loadServers()
+      openDetail({ id: created.id })
     }
-    showAddDialog.value = false
-    editing.value = null
-    form.value = defaultForm()
-    await loadServers()
   } catch (e) {
     ElMessage.error(e.response?.data?.detail || '保存失败')
   } finally {

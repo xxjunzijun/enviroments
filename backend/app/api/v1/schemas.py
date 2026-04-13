@@ -41,11 +41,7 @@ class ServerResponse(BaseModel):
     tags: str
     is_online: bool
     online_checked_at: Optional[datetime] = None
-    cached_hostname: Optional[str] = None
-    cached_os_version: Optional[str] = None
-    cached_cpu_count: Optional[int] = None
-    cached_memory_total: Optional[int] = None
-    cached_interfaces: Optional[list] = None
+    cached_info: Optional[dict] = None   # JSON object
     cached_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
@@ -71,8 +67,8 @@ class ServerDetailResponse(BaseModel):
     ip: str
     os_type: str
     os_version: Optional[str] = None
-    cpu_count: Optional[int] = None
-    memory_total: Optional[int] = None
+    cpu: Optional[int] = None
+    mem: Optional[int] = None
     interfaces: Optional[list] = None
     is_online: bool
     description: Optional[str] = None

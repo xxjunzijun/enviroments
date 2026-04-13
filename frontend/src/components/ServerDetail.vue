@@ -1,23 +1,20 @@
 <template>
-  <el-drawer v-model="drawerVisible" :title="`📁 ${serverIp}`" size="560px" direction="rtl">
+  <el-drawer v-model="drawerVisible" :title="`服务器 ${serverIp}`" size="560px" direction="rtl">
 
-    <!-- Tabs: 详情 / 文件管理 -->
+    <!-- Tabs: 详情 / 文件管理 / 日志 -->
     <el-tabs v-model="activeTab" class="server-tabs">
+
+      <!-- ── 详情 ─────────────────────────────────────────────────────────── -->
       <el-tab-pane label="详情" name="detail">
         <template v-if="detail">
           <el-descriptions :column="1" border size="small">
             <el-descriptions-item label="IP">{{ detail.ip }}</el-descriptions-item>
             <el-descriptions-item label="系统">{{ detail.os_type }} — {{ detail.os_version || '—' }}</el-descriptions-item>
-            <el-descriptions-item label="CPU">{{ detail.cpu_count ?? '—' }} 核</el-descriptions-item>
-            <el-descriptions-item label="内存">{{ detail.memory_total ? detail.memory_total + ' MB' : '—' }}</el-descriptions-item>
+            <el-descriptions-item label="CPU">{{ detail.cpu ?? '—' }} 核</el-descriptions-item>
+            <el-descriptions-item label="内存">{{ detail.mem ? detail.mem + ' MB' : '—' }}</el-descriptions-item>
             <el-descriptions-item label="标签">{{ detail.tags || '—' }}</el-descriptions-item>
             <el-descriptions-item label="备注">{{ detail.description || '—' }}</el-descriptions-item>
-            <el-descriptions-item label="状态">
-              <el-tag :type="detail.is_online ? 'success' : 'danger'" size="small">
-                {{ detail.is_online ? '在线' : '离线' }}
-              </el-tag>
-            </el-descriptions-item>
-            <el-descriptions-item label="采集时间">{{ detail.cached_at || '从未' }}</el-descriptions-item>
+            <el-descriptions-item label="采集时间">{{ detail.cached_at || '—' }}</el-descriptions-item>
           </el-descriptions>
 
           <el-divider>网卡</el-divider>
@@ -37,59 +34,15 @@
             <el-button size="small" type="danger" @click="deleteServer">删除</el-button>
           </div>
         </template>
-        <el-empty v-else description="加载中…" />
+        <el-empty v-else-if="loadingDetail" description="加载中…" />
+        <el-empty v-else description="暂无数据，请点击" />
       </el-tab-pane>
 
-      <el-tab-pane label="日志" name="logs">
-        <div class="log-toolbar">
-          <el-button size="small" @click="loadLogs" :loading="loadingLogs">
-            <el-icon><Refresh /></el-icon> 刷新
-          </el-button>
-          <el-button size="small" type="danger" @click="clearLogs" :disabled="logs.length === 0">
-            清空日志
-          </el-button>
-        </div>
-
-        <el-table :data="logs" size="small" max-height="400" v-loading="loadingLogs">
-          <el-table-column label="时间" width="160">
-            <template #default="{ row }">
-              {{ formatTime(row.logged_at) }}
-            </template>
-          </el-table-column>
-          <el-table-column label="事件" width="110">
-            <template #default="{ row }">
-              <el-tag size="small" :type="row.event_type === 'status_check' ? 'info' : 'primary'">
-                {{ row.event_type === 'status_check' ? '状态' : '详情采集' }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column label="状态" width="70">
-            <template #default="{ row }">
-              <el-tag v-if="row.is_online !== null" :type="row.is_online ? 'success' : 'danger'" size="small">
-                {{ row.is_online ? '在线' : '离线' }}
-              </el-tag>
-              <span v-else-if="row.error_message" style="color:#f56c6c;font-size:12px">失败</span>
-              <span v-else>—</span>
-            </template>
-          </el-table-column>
-          <el-table-column prop="error_message" label="备注" min-width="140" show-overflow-tooltip>
-            <template #default="{ row }">
-              <span v-if="row.error_message" style="color:#f56c6c">{{ row.error_message }}</span>
-              <span v-else-if="row.os_version">{{ row.os_version }}</span>
-              <span v-else>—</span>
-            </template>
-          </el-table-column>
-        </el-table>
-
-        <div v-if="logTotal > logs.length" style="text-align:center;margin-top:8px">
-          <el-button size="small" @click="loadMoreLogs" :loading="loadingLogs">加载更多</el-button>
-        </div>
-      </el-tab-pane>
-
+      <!-- ── 文件管理 ──────────────────────────────────────────────────────── -->
       <el-tab-pane label="文件管理" name="files">
-        <!-- Path bar: breadcrumb — click any segment to navigate there -->
+        <!-- Path bar: breadcrumb -->
         <div class="path-bar">
-          <el-button size="small" text @click="navigateRoot" title="回到根目录" class="home-btn">
+          <el-button size="small" text @click="navigateRoot" title="回到根目录">
             <el-icon><House /></el-icon>
           </el-button>
           <el-button size="small" text :disabled="currentPath === '/'" @click="goUp" title="上一级">
@@ -111,14 +64,11 @@
           v-loading="loading"
           size="small"
           class="file-table"
-          row-class-name="file-row"
           @row-dblclick="onRowDblClick"
           @row-click="onRowClick"
-          @header-dragend="onColumnResize"
           highlight-current-row
-          :resizable="true"
         >
-          <el-table-column :width="colWidths.icon || 40" min-width="40" label="">
+          <el-table-column width="40">
             <template #default="{ row }">
               <el-icon :color="row.type === 'directory' ? '#409eff' : '#909399'" size="18">
                 <FolderOpened v-if="row.type === 'directory'" />
@@ -126,12 +76,12 @@
               </el-icon>
             </template>
           </el-table-column>
-          <el-table-column prop="name" :width="colWidths.name || 260" min-width="120" label="名称">
+          <el-table-column prop="name" label="名称" min-width="240">
             <template #default="{ row }">
               <span :class="row.type === 'directory' ? 'dir-name' : 'file-name'">{{ row.name }}</span>
             </template>
           </el-table-column>
-          <el-table-column label="大小" :width="colWidths.size || 90" min-width="80" align="right">
+          <el-table-column label="大小" width="90" align="right">
             <template #default="{ row }">
               <span v-if="row.type === 'file'" class="file-size">{{ formatSize(row.size) }}</span>
               <span v-else>—</span>
@@ -152,6 +102,40 @@
           </el-button>
         </div>
       </el-tab-pane>
+
+      <!-- ── 日志 ───────────────────────────────────────────────────────────── -->
+      <el-tab-pane label="日志" name="logs">
+        <div class="log-toolbar">
+          <el-button size="small" @click="loadLogs" :loading="loadingLogs">
+            <el-icon><Refresh /></el-icon> 刷新
+          </el-button>
+          <el-button size="small" type="danger" @click="clearLogs">
+            清空日志
+          </el-button>
+        </div>
+
+        <div class="log-container" v-loading="loadingLogs">
+          <div v-if="logs.length === 0" class="log-empty">暂无日志记录</div>
+          <div v-else class="log-list">
+            <div v-for="(log, i) in logs" :key="i" class="log-line" :class="logClass(log)">
+              <span class="log-time">{{ log.time || '—' }}</span>
+              <span class="log-type">{{ log.type === 'status_check' ? '状态' : '详情' }}</span>
+              <span class="log-status" :class="log.online ? 'online' : 'offline'">
+                {{ log.online === true ? '在线' : log.online === false ? '离线' : '—' }}
+              </span>
+              <span v-if="log.cpu" class="log-info">CPU {{ log.cpu }}核</span>
+              <span v-if="log.mem" class="log-info">内存 {{ log.mem }}MB</span>
+              <span v-if="log.os_version" class="log-info">{{ log.os_version }}</span>
+              <span v-if="log.error" class="log-error">{{ log.error }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="logTotal > logs.length" style="text-align:center;margin-top:8px">
+          <el-button size="small" @click="loadMoreLogs" :loading="loadingLogs">加载更多</el-button>
+        </div>
+      </el-tab-pane>
+
     </el-tabs>
 
     <!-- Upload Dialog -->
@@ -193,39 +177,12 @@ const emit = defineEmits(['close', 'server-updated'])
 
 const activeTab = ref('detail')
 const detail = ref(null)
+const loadingDetail = ref(false)
 const fetchingDetail = ref(false)
 const entries = ref([])
 const loading = ref(false)
 const currentPath = ref('/')
 const selectedFile = ref(null)
-
-const pathSegments = computed(() => {
-  // "/home/user/dir" → ["home", "user", "dir"] for breadcrumb rendering
-  if (!currentPath.value || currentPath.value === '/') return []
-  return currentPath.value.split('/').filter(Boolean)
-})
-const colWidths = ref(loadColWidths())
-
-function loadColWidths() {
-  try {
-    return JSON.parse(localStorage.getItem('enviroments_file_col_widths') || '{}')
-  } catch { return {} }
-}
-
-function saveColWidths(w) {
-  localStorage.setItem('enviroments_file_col_widths', JSON.stringify(w))
-  colWidths.value = w
-}
-
-function onColumnResize(nw, col) {
-  const key = col.property === null ? 'icon' : col.property
-  if (key === 'label' || !key) return
-  const widths = { ...colWidths.value }
-  if (col.property === 'name') widths.name = nw
-  else if (col.property === null) widths.icon = nw
-  else if (col.label === '大小') widths.size = nw
-  saveColWidths(widths)
-}
 const uploadDialogVisible = ref(false)
 const uploadRemotePath = ref('')
 const uploadFileBase64 = ref(null)
@@ -237,7 +194,8 @@ const loadingLogs = ref(false)
 const logOffset = ref(0)
 const logTotal = ref(0)
 
-// Load data when serverId changes
+// ── Detail load ─────────────────────────────────────────────────────────────────
+
 watch(() => props.serverId, async (id) => {
   if (!id) return
   detail.value = null
@@ -249,13 +207,14 @@ watch(() => props.serverId, async (id) => {
 }, { immediate: true })
 
 async function loadDetail() {
-  // Use cached data — fast, no SSH. Background scheduler keeps it fresh.
+  loadingDetail.value = true
   try {
-    const data = await serverApi.get(props.serverId)
-    detail.value = data
-    serverIp.value = data.hostname || data.ip
+    detail.value = await serverApi.fetchDetail(props.serverId)
+    serverIp.value = detail.value.ip
   } catch (e) {
     ElMessage.error('加载失败')
+  } finally {
+    loadingDetail.value = false
   }
 }
 
@@ -284,7 +243,6 @@ async function checkStatus() {
 
 function openEdit() {
   emit('close')
-  // Emit event to parent to open edit dialog
   emit('open-edit', props.serverId)
 }
 
@@ -298,7 +256,7 @@ async function deleteServer() {
   } catch {}
 }
 
-// ── File Browser ────────────────────────────────────────────────────────────────
+// ── File Browser ─────────────────────────────────────────────────────────────────
 
 async function loadDir(path) {
   if (!props.serverId) return
@@ -316,6 +274,11 @@ async function loadDir(path) {
   }
 }
 
+const pathSegments = computed(() => {
+  if (!currentPath.value || currentPath.value === '/') return []
+  return currentPath.value.split('/').filter(Boolean)
+})
+
 function navigateRoot() { loadDir('/') }
 function goUp() {
   if (currentPath.value === '/') return
@@ -323,22 +286,17 @@ function goUp() {
   parts.pop()
   loadDir(parts.length ? '/' + parts.join('/') : '/')
 }
-
-// Click on breadcrumb segment: navigate to that depth (0 = root /)
 function navigateToSeg(idx) {
   if (currentPath.value === '/') return
   const parts = currentPath.value.split('/').filter(Boolean)
-  // idx 0 = first segment = root child, idx 1 = second segment, etc.
   const target = '/' + parts.slice(0, idx + 1).join('/')
   loadDir(target)
 }
-
 function refresh() { loadDir(currentPath.value) }
 
 function onRowClick(row) {
   selectedFile.value = row.type === 'file' ? row : null
 }
-
 function onRowDblClick(row) {
   if (row.type === 'directory') {
     loadDir(row.path)
@@ -354,12 +312,10 @@ function downloadFile(path) {
   a.download = path.split('/').pop()
   a.click()
 }
-
 function downloadSelected() {
   if (selectedFile.value) downloadFile(selectedFile.value)
 }
 
-// Auto-load files tab content when switching to files tab
 watch(activeTab, (tab) => {
   if (tab === 'files' && entries.value.length === 0) {
     loadDir('/')
@@ -370,45 +326,6 @@ watch(activeTab, (tab) => {
     loadLogs()
   }
 })
-
-async function loadLogs() {
-  if (!props.serverId) return
-  loadingLogs.value = true
-  try {
-    const data = await logsApi.list(props.serverId, 100, logOffset.value)
-    if (logOffset.value === 0) {
-      logs.value = data.logs
-    } else {
-      logs.value.push(...data.logs)
-    }
-    logTotal.value = data.total
-    logOffset.value += data.logs.length
-  } catch (e) {
-    ElMessage.error('加载日志失败')
-  } finally {
-    loadingLogs.value = false
-  }
-}
-
-async function loadMoreLogs() {
-  await loadLogs()
-}
-
-async function clearLogs() {
-  try {
-    await ElMessageBox.confirm('确定清空该服务器的所有日志？', '确认', { type: 'warning' })
-    await logsApi.clear(props.serverId)
-    logs.value = []
-    logTotal.value = 0
-    ElMessage.success('已清空')
-  } catch {}
-}
-
-function formatTime(iso) {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`
-}
 
 function showUploadDialog() {
   uploadRemotePath.value = currentPath.value === '/' ? '/' : currentPath.value + '/'
@@ -454,6 +371,47 @@ function formatSize(bytes) {
   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
   return (bytes / 1024 / 1024).toFixed(1) + ' MB'
 }
+
+// ── Logs ─────────────────────────────────────────────────────────────────────────
+
+async function loadLogs() {
+  if (!props.serverId) return
+  loadingLogs.value = true
+  try {
+    const data = await logsApi.list(props.serverId, 200, logOffset.value)
+    if (logOffset.value === 0) {
+      logs.value = data.logs
+    } else {
+      logs.value.push(...data.logs)
+    }
+    logTotal.value = data.total
+    logOffset.value += data.logs.length
+  } catch (e) {
+    ElMessage.error('加载日志失败')
+  } finally {
+    loadingLogs.value = false
+  }
+}
+
+async function loadMoreLogs() {
+  await loadLogs()
+}
+
+async function clearLogs() {
+  try {
+    await ElMessageBox.confirm('确定清空该服务器的所有日志？', '确认', { type: 'warning' })
+    await logsApi.clear(props.serverId)
+    logs.value = []
+    logTotal.value = 0
+    ElMessage.success('已清空')
+  } catch {}
+}
+
+function logClass(log) {
+  if (log.error) return 'log-error-row'
+  if (log.online === false) return 'log-offline-row'
+  return ''
+}
 </script>
 
 <style scoped>
@@ -470,20 +428,11 @@ function formatSize(bytes) {
   overflow: hidden;
 }
 .home-btn { padding: 0 4px; }
-.breadcrumb-sep {
-  color: #999;
-  margin: 0 2px;
-  user-select: none;
-}
+.breadcrumb-sep { color: #999; margin: 0 2px; user-select: none; }
 .breadcrumb-seg {
-  color: #409eff;
-  cursor: pointer;
-  padding: 2px 4px;
-  border-radius: 4px;
-  white-space: nowrap;
-  max-width: 120px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  color: #409eff; cursor: pointer; padding: 2px 4px;
+  border-radius: 4px; white-space: nowrap; max-width: 120px;
+  overflow: hidden; text-overflow: ellipsis;
 }
 .breadcrumb-seg:hover { background: #ecf5ff; text-decoration: underline; }
 .breadcrumb-seg.last { color: #333; cursor: default; font-weight: 500; }
@@ -492,14 +441,35 @@ function formatSize(bytes) {
 .dir-name { color: #409eff; font-weight: 500; }
 .file-name { color: #333; }
 .file-size { color: #999; font-size: 12px; }
-.file-toolbar {
-  display: flex;
-  gap: 8px;
-  margin-top: 10px;
+.file-toolbar { display: flex; gap: 8px; margin-top: 10px; }
+.detail-actions { display: flex; gap: 8px; margin-top: 16px; }
+
+/* Log tab */
+.log-toolbar { display: flex; gap: 8px; margin-bottom: 10px; }
+.log-container {
+  border: 1px solid #ebeef5;
+  border-radius: 6px;
+  max-height: 400px;
+  overflow-y: auto;
 }
-.detail-actions {
+.log-empty { padding: 24px; text-align: center; color: #999; }
+.log-list { font-family: 'Consolas', monospace; font-size: 12px; }
+.log-line {
   display: flex;
+  align-items: center;
   gap: 8px;
-  margin-top: 16px;
+  padding: 5px 10px;
+  border-bottom: 1px solid #f0f0f0;
+  flex-wrap: wrap;
 }
+.log-line:last-child { border-bottom: none; }
+.log-offline-row { background: #fff5f5; }
+.log-error-row { background: #fff0f0; }
+.log-time { color: #999; white-space: nowrap; }
+.log-type { color: #409eff; font-weight: 500; }
+.log-status { font-size: 12px; }
+.log-status.online { color: #67c23a; }
+.log-status.offline { color: #f56c6c; }
+.log-info { color: #666; }
+.log-error { color: #f56c6c; }
 </style>

@@ -13,8 +13,6 @@ from infrastructure.ssh_client import get_server_info_via_ssh, check_online, Ser
 router = APIRouter(prefix="/servers", tags=["servers"])
 
 
-# ── List ──────────────────────────────────────────────────────────────────────
-
 @router.get("", response_model=ServerListResponse)
 def list_servers(db: Session = Depends(get_db)):
     servers = db.query(Server).order_by(Server.ip).all()
@@ -24,8 +22,6 @@ def list_servers(db: Session = Depends(get_db)):
     )
 
 
-# ── Get one ───────────────────────────────────────────────────────────────────
-
 @router.get("/{server_id}", response_model=ServerResponse)
 def get_server(server_id: int, db: Session = Depends(get_db)):
     server = db.query(Server).filter(Server.id == server_id).first()
@@ -33,8 +29,6 @@ def get_server(server_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Server not found")
     return _to_response(server)
 
-
-# ── Create ────────────────────────────────────────────────────────────────────
 
 @router.post("", response_model=ServerResponse, status_code=201)
 def create_server(data: ServerCreate, db: Session = Depends(get_db)):
@@ -58,8 +52,6 @@ def create_server(data: ServerCreate, db: Session = Depends(get_db)):
     return _to_response(server)
 
 
-# ── Update ────────────────────────────────────────────────────────────────────
-
 @router.put("/{server_id}", response_model=ServerResponse)
 def update_server(server_id: int, data: ServerUpdate, db: Session = Depends(get_db)):
     server = db.query(Server).filter(Server.id == server_id).first()
@@ -74,8 +66,6 @@ def update_server(server_id: int, data: ServerUpdate, db: Session = Depends(get_
     return _to_response(server)
 
 
-# ── Delete ────────────────────────────────────────────────────────────────────
-
 @router.delete("/{server_id}", status_code=204)
 def delete_server(server_id: int, db: Session = Depends(get_db)):
     server = db.query(Server).filter(Server.id == server_id).first()
@@ -84,8 +74,6 @@ def delete_server(server_id: int, db: Session = Depends(get_db)):
     db.delete(server)
     db.commit()
 
-
-# ── Check status ─────────────────────────────────────────────────────────────
 
 @router.get("/{server_id}/status", response_model=StatusCheckResponse)
 def check_status(server_id: int, db: Session = Depends(get_db)):
@@ -106,8 +94,6 @@ def check_status(server_id: int, db: Session = Depends(get_db)):
     )
 
 
-# ── Fetch detail via SSH ───────────────────────────────────────────────────────
-
 @router.get("/{server_id}/detail", response_model=ServerDetailResponse)
 def fetch_detail(server_id: int, db: Session = Depends(get_db)):
     server = db.query(Server).filter(Server.id == server_id).first()
@@ -122,46 +108,43 @@ def fetch_detail(server_id: int, db: Session = Depends(get_db)):
         port=server.port,
     )
 
+    now = datetime.utcnow()
     if info.error:
         raise HTTPException(status_code=502, detail=f"SSH error: {info.error}")
 
-    server.cached_hostname = info.hostname
-    server.cached_os_version = info.os_version
-    server.cached_cpu_count = info.cpu_count
-    server.cached_memory_total = info.memory_total
-    server.cached_interfaces = json.dumps(info.interfaces or [])
-    server.cached_at = datetime.utcnow()
+    snapshot = {
+        "os_type": info.os_type,
+        "os_version": info.os_version,
+        "cpu": info.cpu_count,
+        "mem": info.memory_total,
+        "interfaces": info.interfaces or [],
+        "hostname": info.hostname,
+    }
+    server.cached_info = json.dumps(snapshot, ensure_ascii=False)
+    server.cached_at = now
+    server.is_online = True
     db.commit()
-
-    interfaces = []
-    if server.cached_interfaces:
-        try:
-            interfaces = json.loads(server.cached_interfaces)
-        except Exception:
-            pass
 
     return ServerDetailResponse(
         id=server.id,
         ip=server.ip,
         os_type=info.os_type,
         os_version=info.os_version,
-        cpu_count=info.cpu_count,
-        memory_total=info.memory_total,
-        interfaces=interfaces,
-        is_online=server.is_online,
+        cpu=info.cpu_count,
+        mem=info.memory_total,
+        interfaces=info.interfaces or [],
+        is_online=True,
         description=server.description,
         tags=server.tags,
         cached_at=server.cached_at,
     )
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
-
 def _to_response(server: Server) -> ServerResponse:
-    interfaces = None
-    if server.cached_interfaces:
+    cached_info = None
+    if server.cached_info:
         try:
-            interfaces = json.loads(server.cached_interfaces)
+            cached_info = json.loads(server.cached_info)
         except Exception:
             pass
 
@@ -177,11 +160,7 @@ def _to_response(server: Server) -> ServerResponse:
         tags=server.tags,
         is_online=server.is_online,
         online_checked_at=server.online_checked_at,
-        cached_hostname=server.cached_hostname,
-        cached_os_version=server.cached_os_version,
-        cached_cpu_count=server.cached_cpu_count,
-        cached_memory_total=server.cached_memory_total,
-        cached_interfaces=interfaces,
+        cached_info=cached_info,
         cached_at=server.cached_at,
         created_at=server.created_at,
         updated_at=server.updated_at,
