@@ -3,8 +3,8 @@ import sys
 
 block_cipher = None
 
-# SPECPATH is provided automatically by PyInstaller in spec file context
-project_root = os.path.dirname(os.path.abspath(SPECPATH))  # backend/
+# SPECPATH = backend/ directory (where this spec file lives)
+project_root = SPECPATH  # backend/
 frontend_dist = os.path.join(project_root, "..", "frontend", "dist")  # ../frontend/dist
 
 a = Analysis(
