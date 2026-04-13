@@ -1,17 +1,19 @@
 import os
-import sys
 
 block_cipher = None
 
-# SPECPATH = backend/ directory (where this spec file lives)
-project_root = SPECPATH  # backend/
-frontend_dist = os.path.join(project_root, "..", "frontend", "dist")  # ../frontend/dist
+# ── Paths ──────────────────────────────────────────────────────────────────────
+# SPECPATH = directory containing the spec file = backend/
+# SPECPATH is provided automatically by PyInstaller in spec file context
+BACKEND_DIR  = os.path.dirname(os.path.abspath(SPECPATH))   # backend/
+REPO_DIR     = os.path.dirname(BACKEND_DIR)                 # repo root
+FRONTEND_DIR = os.path.join(REPO_DIR, "frontend", "dist")   # repo/frontend/dist
 
 a = Analysis(
-    [os.path.join(project_root, "app", "main.py")],
+    [os.path.join(BACKEND_DIR, "app", "main.py")],
     binaries=[],
     datas=[
-        (frontend_dist, "frontend/dist"),
+        (FRONTEND_DIR, "frontend/dist"),
     ],
     hiddenimports=[
         "app.api.v1.routers.servers",
@@ -21,8 +23,20 @@ a = Analysis(
         "infrastructure.ssh_client",
         "infrastructure.sftp_client",
         "uvicorn",
+        "uvicorn.loops",
+        "uvicorn.loops.auto",
+        "uvicorn.protocols",
+        "uvicorn.protocols.http",
+        "uvicorn.protocols.http.auto",
+        "uvicorn.protocols.websockets",
+        "uvicorn.protocols.websockets.auto",
+        "uvicorn.lifespan",
+        "uvicorn.lifespan.on",
         "fastapi",
+        "fastapi.applications",
+        "fastapi.routing",
         "sqlalchemy",
+        "sqlalchemy.orm",
         "pydantic",
         "paramiko",
         "aiosqlite",
