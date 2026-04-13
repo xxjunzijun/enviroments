@@ -107,3 +107,15 @@ https://github.com/xxjunzijun/enviroments
 | 标签 | 说明 |
 |------|------|
 | v0.1.0 | MVP：服务器管理 + 文件浏览器 + SSH 信息采集 |
+| v0.2.0 | 修复日志路径bug，新增标签行内编辑、搜索栏、detail_fetch日志记录 |
+
+## 开发记录
+
+### v0.2.0 (2026-04-13)
+- **Bug修复**：`servers.py` 和 `logs.py` 的日志路径计算错误（3层/4层dirname），统一改为从 `scheduler.py` 导入 `LOG_DIR`
+- **Bug修复**：`ServerResponse` 新增 `cached_os_version` 字段，解决主界面系统版本列不显示
+- **Bug修复**：日志API分页offset语义错误，前端loadLogs每次重新拉取不再追加
+- **功能**：`fetchDetail` 和 `checkStatus` 成功后自动刷新日志tab
+- **功能**：标签列改为点击行内编辑（回车或失焦自动保存）
+- **功能**：新增搜索栏，支持IP/标签/系统版本/备注关键字实时过滤
+- **Bug修复**：`ServerList.vue` 的 `onMounted` import 遗漏导致页面无法渲染
