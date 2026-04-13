@@ -27,6 +27,24 @@ class Server(Base):
 
     is_online = Column(Boolean, default=False)
     online_checked_at = Column(DateTime, nullable=True)
+    status_check_interval = Column(Integer, default=5)   # minutes
+    detail_fetch_interval = Column(Integer, default=30)  # minutes
 
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class ServerLog(Base):
+    """Log of server status and detail changes over time."""
+    __tablename__ = "server_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    server_id = Column(Integer, nullable=False, index=True)
+    event_type = Column(String(50), nullable=False)  # "status_check" | "detail_fetch"
+    is_online = Column(Boolean, nullable=True)
+    os_version = Column(String(255), nullable=True)
+    cpu_count = Column(Integer, nullable=True)
+    memory_total = Column(Integer, nullable=True)
+    interfaces_json = Column(Text, nullable=True)  # JSON string
+    error_message = Column(Text, nullable=True)
+    logged_at = Column(DateTime, default=datetime.utcnow)

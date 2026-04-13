@@ -6,7 +6,6 @@
       <el-tab-pane label="详情" name="detail">
         <template v-if="detail">
           <el-descriptions :column="1" border size="small">
-            <el-descriptions-item label="主机名">{{ detail.hostname }}</el-descriptions-item>
             <el-descriptions-item label="IP">{{ detail.ip }}</el-descriptions-item>
             <el-descriptions-item label="系统">{{ detail.os_type }} — {{ detail.os_version || '—' }}</el-descriptions-item>
             <el-descriptions-item label="CPU">{{ detail.cpu_count ?? '—' }} 核</el-descriptions-item>
@@ -38,6 +37,52 @@
           </div>
         </template>
         <el-empty v-else description="加载中…" />
+      </el-tab-pane>
+
+      <el-tab-pane label="日志" name="logs">
+        <div class="log-toolbar">
+          <el-button size="small" @click="loadLogs" :loading="loadingLogs">
+            <el-icon><Refresh /></el-icon> 刷新
+          </el-button>
+          <el-button size="small" type="danger" @click="clearLogs" :disabled="logs.length === 0">
+            清空日志
+          </el-button>
+        </div>
+
+        <el-table :data="logs" size="small" max-height="400" v-loading="loadingLogs">
+          <el-table-column label="时间" width="160">
+            <template #default="{ row }">
+              {{ formatTime(row.logged_at) }}
+            </template>
+          </el-table-column>
+          <el-table-column label="事件" width="110">
+            <template #default="{ row }">
+              <el-tag size="small" :type="row.event_type === 'status_check' ? 'info' : 'primary'">
+                {{ row.event_type === 'status_check' ? '状态' : '详情采集' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="状态" width="70">
+            <template #default="{ row }">
+              <el-tag v-if="row.is_online !== null" :type="row.is_online ? 'success' : 'danger'" size="small">
+                {{ row.is_online ? '在线' : '离线' }}
+              </el-tag>
+              <span v-else-if="row.error_message" style="color:#f56c6c;font-size:12px">失败</span>
+              <span v-else>—</span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="error_message" label="备注" min-width="140" show-overflow-tooltip>
+            <template #default="{ row }">
+              <span v-if="row.error_message" style="color:#f56c6c">{{ row.error_message }}</span>
+              <span v-else-if="row.os_version">{{ row.os_version }}</span>
+              <span v-else>—</span>
+            </template>
+          </el-table-column>
+        </el-table>
+
+        <div v-if="logTotal > logs.length" style="text-align:center;margin-top:8px">
+          <el-button size="small" @click="loadMoreLogs" :loading="loadingLogs">加载更多</el-button>
+        </div>
       </el-tab-pane>
 
       <el-tab-pane label="文件管理" name="files">
@@ -131,11 +176,11 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   FolderOpened, Document, Refresh, Top, House, Upload, Download
 } from '@element-plus/icons-vue'
-import { servers as serverApi, files as filesApi } from '../api/index.js'
+import { servers as serverApi, files as filesApi, logs as logsApi } from '../api/index.js'
 
 const props = defineProps({ serverId: { type: Number, default: null } })
 
@@ -186,6 +231,10 @@ const uploadFileBase64 = ref(null)
 const uploadFileName = ref('')
 const uploading = ref(false)
 const serverHostname = ref('')
+const logs = ref([])
+const loadingLogs = ref(false)
+const logOffset = ref(0)
+const logTotal = ref(0)
 
 // Load data when serverId changes
 watch(() => props.serverId, async (id) => {
@@ -309,7 +358,51 @@ watch(activeTab, (tab) => {
   if (tab === 'files' && entries.value.length === 0) {
     loadDir('/')
   }
+  if (tab === 'logs') {
+    logOffset.value = 0
+    logs.value = []
+    loadLogs()
+  }
 })
+
+async function loadLogs() {
+  if (!props.serverId) return
+  loadingLogs.value = true
+  try {
+    const data = await logsApi.list(props.serverId, 100, logOffset.value)
+    if (logOffset.value === 0) {
+      logs.value = data.logs
+    } else {
+      logs.value.push(...data.logs)
+    }
+    logTotal.value = data.total
+    logOffset.value += data.logs.length
+  } catch (e) {
+    ElMessage.error('加载日志失败')
+  } finally {
+    loadingLogs.value = false
+  }
+}
+
+async function loadMoreLogs() {
+  await loadLogs()
+}
+
+async function clearLogs() {
+  try {
+    await ElMessageBox.confirm('确定清空该服务器的所有日志？', '确认', { type: 'warning' })
+    await logsApi.clear(props.serverId)
+    logs.value = []
+    logTotal.value = 0
+    ElMessage.success('已清空')
+  } catch {}
+}
+
+function formatTime(iso) {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`
+}
 
 function showUploadDialog() {
   uploadRemotePath.value = currentPath.value === '/' ? '/' : currentPath.value + '/'

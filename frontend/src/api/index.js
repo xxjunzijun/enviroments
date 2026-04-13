@@ -29,3 +29,10 @@ export const files = {
   upload: (serverId, path, base64Content) =>
     api.post(`/servers/${serverId}/files`, { path, content: base64Content }).then(r => r.data),
 }
+
+export const logs = {
+  list: (serverId, limit = 100, offset = 0) =>
+    api.get(`/servers/${serverId}/logs`, { params: { limit, offset } }).then(r => r.data),
+
+  clear: (serverId) => api.delete(`/servers/${serverId}/logs/clear`),
+}
