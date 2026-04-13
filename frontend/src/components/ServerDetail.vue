@@ -1,5 +1,5 @@
 <template>
-  <el-drawer v-model="drawerVisible" :title="`📁 ${serverHostname}`" size="560px" direction="rtl">
+  <el-drawer v-model="drawerVisible" :title="`📁 ${serverIp}`" size="560px" direction="rtl">
 
     <!-- Tabs: 详情 / 文件管理 -->
     <el-tabs v-model="activeTab" class="server-tabs">
@@ -34,6 +34,7 @@
             </el-button>
             <el-button size="small" @click="checkStatus">检测状态</el-button>
             <el-button size="small" @click="openEdit">编辑</el-button>
+            <el-button size="small" type="danger" @click="deleteServer">删除</el-button>
           </div>
         </template>
         <el-empty v-else description="加载中…" />
@@ -230,7 +231,7 @@ const uploadRemotePath = ref('')
 const uploadFileBase64 = ref(null)
 const uploadFileName = ref('')
 const uploading = ref(false)
-const serverHostname = ref('')
+const serverIp = ref('')
 const logs = ref([])
 const loadingLogs = ref(false)
 const logOffset = ref(0)
@@ -248,18 +249,13 @@ watch(() => props.serverId, async (id) => {
 }, { immediate: true })
 
 async function loadDetail() {
+  // Use cached data — fast, no SSH. Background scheduler keeps it fresh.
   try {
-    detail.value = await serverApi.fetchDetail(props.serverId)
-    serverHostname.value = detail.value.hostname || detail.value.ip
-  } catch {
-    // Fallback to list item data
-    try {
-      const data = await serverApi.get(props.serverId)
-      detail.value = data
-      serverHostname.value = data.hostname || data.ip
-    } catch (e) {
-      ElMessage.error('加载失败')
-    }
+    const data = await serverApi.get(props.serverId)
+    detail.value = data
+    serverIp.value = data.hostname || data.ip
+  } catch (e) {
+    ElMessage.error('加载失败')
   }
 }
 
@@ -290,6 +286,16 @@ function openEdit() {
   emit('close')
   // Emit event to parent to open edit dialog
   emit('open-edit', props.serverId)
+}
+
+async function deleteServer() {
+  try {
+    await ElMessageBox.confirm('删除该服务器？此操作不可恢复。', '确认删除', { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' })
+    await serverApi.delete(props.serverId)
+    ElMessage.success('已删除')
+    emit('close')
+    emit('server-updated')
+  } catch {}
 }
 
 // ── File Browser ────────────────────────────────────────────────────────────────

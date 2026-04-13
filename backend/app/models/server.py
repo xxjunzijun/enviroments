@@ -7,7 +7,6 @@ class Server(Base):
     __tablename__ = "servers"
 
     id = Column(Integer, primary_key=True, index=True)
-    hostname = Column(String(255), nullable=False)
     ip = Column(String(45), unique=True, nullable=False)  # IPv4/IPv6
     port = Column(Integer, default=22)
     os_type = Column(String(50), default="linux")  # linux | windows

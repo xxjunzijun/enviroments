@@ -10,17 +10,8 @@
       </el-button>
     </div>
 
-    <!-- Server Table — click row to open detail -->
-    <el-table
-      :data="servers"
-      stripe
-      border
-      v-loading="loading"
-      class="server-table"
-      style="width: 100%"
-      row-class-name="server-row"
-      @row-click="onRowClick"
-    >
+    <!-- Server Table -->
+    <el-table :data="servers" stripe border v-loading="loading" class="server-table" style="width: 100%">
       <el-table-column label="状态" width="80" align="center">
         <template #default="{ row }">
           <el-tag :type="row.is_online ? 'success' : 'danger'" size="small">
@@ -28,8 +19,7 @@
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="hostname" label="主机名" min-width="160" />
-      <el-table-column prop="ip" label="IP 地址" width="160" />
+      <el-table-column prop="ip" label="IP 地址" min-width="160" />
       <el-table-column prop="os_type" label="系统" width="100">
         <template #default="{ row }">
           <el-tag size="small">{{ row.os_type }}</el-tag>
@@ -37,9 +27,10 @@
       </el-table-column>
       <el-table-column prop="cached_os_version" label="系统版本" min-width="160" show-overflow-tooltip />
       <el-table-column prop="tags" label="标签" width="160" show-overflow-tooltip />
-      <el-table-column label="操作" width="120" align="center">
+      <el-table-column label="操作" width="160" align="center">
         <template #default="{ row }">
-          <el-button size="small" type="danger" @click.stop="remove(row)">删除</el-button>
+          <el-button size="small" type="primary" @click="openDetail(row)">查看详情</el-button>
+          <el-button size="small" type="danger" @click="remove(row)">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -47,9 +38,6 @@
     <!-- Add/Edit Dialog -->
     <el-dialog v-model="showAddDialog" :title="editing ? '编辑服务器' : '添加服务器'" width="520px">
       <el-form :model="form" label-width="100" ref="formRef">
-        <el-form-item label="主机名" required>
-          <el-input v-model="form.hostname" placeholder="e.g. web-prod-01" />
-        </el-form-item>
         <el-form-item label="IP 地址" required>
           <el-input v-model="form.ip" placeholder="e.g. 192.168.1.10" />
         </el-form-item>
@@ -81,13 +69,8 @@
       </template>
     </el-dialog>
 
-    <!-- Combined Detail + File Browser Drawer -->
-    <ServerDetail
-      :serverId="activeServerId"
-      @close="activeServerId = null"
-      @server-updated="loadServers"
-      @open-edit="openEditById"
-    />
+    <!-- Detail Drawer -->
+    <ServerDetail :serverId="activeServerId" @close="activeServerId = null" @server-updated="loadServers" @open-edit="openEditById" />
   </div>
 </template>
 
@@ -107,7 +90,6 @@ const saving = ref(false)
 const activeServerId = ref(null)
 
 const defaultForm = () => ({
-  hostname: '',
   ip: '',
   port: 22,
   os_type: 'linux',
@@ -133,7 +115,7 @@ async function loadServers() {
   }
 }
 
-function onRowClick(row) {
+function openDetail(row) {
   activeServerId.value = row.id
 }
 
@@ -150,7 +132,6 @@ function openEditById(id) {
 function openEdit(row) {
   editing.value = row.id
   form.value = {
-    hostname: row.hostname,
     ip: row.ip,
     port: row.port,
     os_type: row.os_type,
@@ -187,7 +168,7 @@ async function saveServer() {
 async function remove(row) {
   try {
     await ElMessageBox.confirm(
-      `删除服务器 "${row.hostname}" (${row.ip})？`,
+      `删除服务器 "${row.ip}"？`,
       '确认删除',
       { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' }
     )
@@ -221,9 +202,5 @@ onMounted(loadServers)
 .server-table {
   border-radius: 8px;
   overflow: hidden;
-}
-
-:deep(.server-row) {
-  cursor: pointer;
 }
 </style>

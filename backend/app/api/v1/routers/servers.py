@@ -1,6 +1,6 @@
 import json
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models.server import Server
@@ -8,9 +8,7 @@ from app.api.v1.schemas import (
     ServerCreate, ServerUpdate, ServerResponse,
     ServerListResponse, StatusCheckResponse, ServerDetailResponse
 )
-from infrastructure.ssh_client import (
-    get_server_info_via_ssh, check_online, ServerInfo
-)
+from infrastructure.ssh_client import get_server_info_via_ssh, check_online, ServerInfo
 
 router = APIRouter(prefix="/servers", tags=["servers"])
 
@@ -19,7 +17,7 @@ router = APIRouter(prefix="/servers", tags=["servers"])
 
 @router.get("", response_model=ServerListResponse)
 def list_servers(db: Session = Depends(get_db)):
-    servers = db.query(Server).order_by(Server.hostname).all()
+    servers = db.query(Server).order_by(Server.ip).all()
     return ServerListResponse(
         total=len(servers),
         servers=[_to_response(s) for s in servers]
@@ -45,7 +43,6 @@ def create_server(data: ServerCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail=f"IP {data.ip} already registered")
 
     server = Server(
-        hostname=data.hostname,
         ip=data.ip,
         port=data.port,
         os_type=data.os_type,
@@ -88,7 +85,7 @@ def delete_server(server_id: int, db: Session = Depends(get_db)):
     db.commit()
 
 
-# ── Check status (online/offline) ────────────────────────────────────────────
+# ── Check status ─────────────────────────────────────────────────────────────
 
 @router.get("/{server_id}/status", response_model=StatusCheckResponse)
 def check_status(server_id: int, db: Session = Depends(get_db)):
@@ -97,7 +94,6 @@ def check_status(server_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Server not found")
 
     online = check_online(server.ip, port=server.port)
-
     server.is_online = online
     server.online_checked_at = datetime.utcnow()
     db.commit()
@@ -129,14 +125,12 @@ def fetch_detail(server_id: int, db: Session = Depends(get_db)):
     if info.error:
         raise HTTPException(status_code=502, detail=f"SSH error: {info.error}")
 
-    # Cache results
     server.cached_hostname = info.hostname
     server.cached_os_version = info.os_version
     server.cached_cpu_count = info.cpu_count
     server.cached_memory_total = info.memory_total
     server.cached_interfaces = json.dumps(info.interfaces or [])
     server.cached_at = datetime.utcnow()
-    server.hostname = info.hostname  # sync hostname too
     db.commit()
 
     interfaces = []
@@ -148,7 +142,6 @@ def fetch_detail(server_id: int, db: Session = Depends(get_db)):
 
     return ServerDetailResponse(
         id=server.id,
-        hostname=server.cached_hostname or server.hostname,
         ip=server.ip,
         os_type=info.os_type,
         os_version=info.os_version,
@@ -174,7 +167,6 @@ def _to_response(server: Server) -> ServerResponse:
 
     return ServerResponse(
         id=server.id,
-        hostname=server.cached_hostname or server.hostname,
         ip=server.ip,
         port=server.port,
         os_type=server.os_type,
