@@ -7,19 +7,27 @@ warnings.filterwarnings("ignore", message="TripleDES has been moved")
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="paramiko")
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="cryptography")
 
-# Determine base path
-if getattr(sys, 'frozen', False):
-    BASE_DIR = sys._MEIPASS
-else:
-    BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-FRONTEND_DIST = os.path.join(BASE_DIR, "frontend", "dist")
-
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from app.core.database import init_db
 from app.api.v1.routers import servers, files
+
+
+def get_frontend_dist():
+    """Get frontend dist path: works in both dev and frozen modes."""
+    if getattr(sys, 'frozen', False):
+        # In PyInstaller exe: files bundled under _MEIPASS/frontend/dist
+        return os.path.join(sys._MEIPASS, "frontend", "dist")
+    else:
+        # Dev: backend/app/main.py → project root → frontend/dist
+        return os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+            "frontend", "dist"
+        )
+
+
+FRONTEND_DIST = get_frontend_dist()
 
 
 @asynccontextmanager
