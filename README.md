@@ -2,9 +2,18 @@
 
 机房服务器与交换机管理工具。
 
-## 快速启动（开发模式）
+## 技术架构
 
-### 后端
+```
+frontend/          Vue 3 + Element Plus + Axios（内置于 exe）
+backend/            Python + FastAPI + paramiko + APScheduler
+infrastructure/     纯函数 SSH/SFTP 调用，无 FastAPI 依赖
+log/                backend/log/{server_id}.log  JSON 行日志
+```
+
+## 快速启动
+
+### 后端（开发）
 
 ```bash
 cd backend
@@ -12,10 +21,7 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 ```
 
-API 地址：`http://localhost:8000`
-文档：`http://localhost:8000/docs`
-
-### 前端
+### 前端（开发）
 
 ```bash
 cd frontend
@@ -23,55 +29,81 @@ pnpm install
 pnpm run dev
 ```
 
-访问：`http://localhost:3000`
+访问：`http://localhost:8000`（前端已内置，无需另开）
 
 ---
 
-## Windows 一键构建（生成 .exe）
+## 功能清单
 
-### 前置条件
+### ✅ 已完成
 
-1. **Python 3.10+** — [python.org/downloads](https://python.org/downloads)
-2. **Node.js** — [nodejs.org](https://nodejs.org)（仅构建前端时需要）
-3. 安装构建工具：
+**服务器管理**
+- 添加/编辑/删除服务器（IP、端口、系统类型、SSH 凭证、标签、备注）
+- 在线状态检测（每 5 分钟自动检测，可配置间隔）
+- SSH 信息采集（OS 版本、CPU、内存、网卡 — Linux/Windows 双支持）
+- 每 30 分钟自动采集详情（可配置间隔）
+- cached_info 存最新完整快照（JSON 结构，易扩展新字段）
 
-```bash
-pip install pyinstaller
-npm install -g pnpm
-```
+**文件管理器**
+- 通过 SFTP 浏览服务器目录
+- 支持上传/下载文件
+- breadcrumb 路径导航（点击跳转任意目录）
+- 双击目录进入/文件下载
 
-### 构建
+**日志系统**
+- JSON 行格式存储在 `backend/log/{server_id}.log`
+- 每行格式：`{"time":"2026-04-13 17:00:00","type":"status_check","online":true,"cpu":8,"mem":32768,...}`
+- 前端直接展示 JSON 行，无需数据库表结构扩展
+- 扩展新采集字段只需改 SSH 采集代码，日志自动容纳
 
-双击运行 `build.bat`，或命令行：
+**背景任务调度**
+- APScheduler 每 5 分钟检测状态
+- APScheduler 每 30 分钟采集详情
+- 写入日志文件，不依赖数据库表
 
-```cmd
-build.bat
-```
+**Windows exe 构建**
+- GitHub Actions workflow 自动构建
+- 下载即用，无需安装 Python
 
-输出：`dist/Enviroments/Enviroments.exe`
+### ❌ 待做
 
-### 使用
-
-直接双击 `Enviroments.exe`，自动打开浏览器访问 `http://localhost:8000`。
+- 交换机管理（Phase 2）
+- 拓扑图（谁接哪台交换机哪个端口）
 
 ---
 
-## API 概览
+## 目录结构
 
-| 方法 | 路径 | 说明 |
-|------|------|------|
-| GET | /api/v1/servers | 列出所有服务器 |
-| POST | /api/v1/servers | 添加服务器 |
-| GET | /api/v1/servers/:id | 获取服务器信息 |
-| PUT | /api/v1/servers/:id | 更新服务器 |
-| DELETE | /api/v1/servers/:id | 删除服务器 |
-| GET | /api/v1/servers/:id/status | 检测在线状态 |
-| GET | /api/v1/servers/:id/detail | 通过 SSH 采集详细信息 |
+```
+enviroments/
+├── backend/
+│   ├── app/
+│   │   ├── api/v1/routers/  servers.py  files.py  logs.py
+│   │   ├── core/            database.py  scheduler.py
+│   │   ├── models/          server.py
+│   │   └── main.py
+│   ├── infrastructure/       ssh_client.py  sftp_client.py
+│   ├── log/                 JSON-line 日志文件
+│   └── requirements.txt
+├── frontend/
+│   ├── src/
+│   │   ├── views/   ServerList.vue
+│   │   ├── components/  ServerDetail.vue  FileBrowser.vue
+│   │   ├── api/    index.js
+│   │   └── App.vue
+│   └── dist/    已打包静态文件
+├── .github/workflows/   build.yml
+├── Enviroments.spec     PyInstaller 配置
+├── build.bat / build.sh
+└── README.md
+```
 
-## MVP 功能
+## GitHub
 
-- ✅ 服务器列表（增删改查）
-- ✅ 在线状态检测（TCP 连接）
-- ✅ 详细信息采集（CPU、内存、网卡 — Linux/Windows）
-- ✅ 标签管理
-- ❌ 交换机管理（后续版本）
+https://github.com/xxjunzijun/enviroments
+
+## 版本标签
+
+| 标签 | 说明 |
+|------|------|
+| v0.1.0 | MVP：服务器管理 + 文件浏览器 + SSH 信息采集 |
