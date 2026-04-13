@@ -50,30 +50,34 @@ jobs:
           restore-keys: |
             pnpm-${{ runner.os }}-
 
-      # ── Frontend ────────────────────────────────────────────────────────────────
+      # ── Frontend ──────────────────────────────────────────────────────────────
 
       - name: Install frontend deps
         working-directory: frontend
+        shell: pwsh
         run: pnpm install --frozen-lockfile
 
       - name: Build frontend
         working-directory: frontend
+        shell: pwsh
         run: pnpm run build
 
-      # ── Backend ────────────────────────────────────────────────────────────────
+      # ── Backend ──────────────────────────────────────────────────────────────
 
       - name: Install Python deps
+        shell: pwsh
         run: pip install -r backend/requirements.txt pyinstaller
 
       - name: Build with PyInstaller
+        shell: pwsh
         run: |
-          cd backend
-          pyinstaller ../Enviroments.spec --noconfirm --clean
+          pyinstaller Enviroments.spec --noconfirm --clean --distpath ./dist --workpath ./build --specpath .
 
-      - name: Rename output
-        shell: bash
+      - name: Rename output folder
+        shell: pwsh
         run: |
-          mv dist/Enviroments dist/Enviroments-${{ github.run_number }}
+          $runNumber = $env:GITHUB_RUN_NUMBER
+          Move-Item -Path "dist\Enviroments" -Destination "dist\Enviroments-$runNumber"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
