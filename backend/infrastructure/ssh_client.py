@@ -134,17 +134,13 @@ def _pci_of_interface(ssh_client, iface: str) -> dict:
 
 
 def _cpu_model_linux(ssh_client) -> str:
-    """Get CPU model on Linux, works across platforms (x86, ARM, etc)."""
-    # Try device-tree model first (Raspberry Pi, ARM SBCs)
-    model = _exec(ssh_client, "cat /proc/device-tree/model 2>/dev/null || echo ''").strip()
-    if model:
-        return model
-    # Try lscpu (most Linux distros)
-    model = _exec(ssh_client, "lscpu | grep 'Model name' | cut -d: -f2 | sed 's/^ *//' 2>/dev/null || echo ''").strip()
-    if model:
-        return model
-    # Try dmidecode (x86 servers, may need root)
+    """Get CPU model on Linux via dmidecode (most reliable on x86 servers)."""
+    # dmidecode requires root, returns the processor brand string
     model = _exec(ssh_client, "dmidecode -s processor-version 2>/dev/null || echo ''").strip()
+    if model:
+        return model
+    # Fallback: lscpu (works on most Linux distros)
+    model = _exec(ssh_client, "lscpu | grep 'Model name' | cut -d: -f2 | sed 's/^ *//' 2>/dev/null || echo ''").strip()
     if model:
         return model
     # Fallback: cpuinfo

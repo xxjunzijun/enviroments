@@ -196,14 +196,35 @@ const logTotal = ref(0)
 
 // ── Detail load ─────────────────────────────────────────────────────────────────
 
+// 模块级缓存：serverId -> { detail, timestamp }
+const detailCache = new Map()
+const CACHE_TTL = 60_000  // 60 秒
+
 watch(() => props.serverId, async (id) => {
   if (!id) return
-  detail.value = null
   entries.value = []
   currentPath.value = '/'
   selectedFile.value = null
   activeTab.value = 'detail'
-  await loadDetail()
+
+  // 优先用缓存（不等待）
+  const cached = detailCache.get(id)
+  if (cached) {
+    detail.value = cached.detail
+    serverIp.value = cached.detail.ip
+  }
+
+  // 静默后台刷新
+  try {
+    const data = await serverApi.fetchDetail(id)
+    detail.value = data
+    serverIp.value = data.ip
+    detailCache.set(id, { detail: data, timestamp: Date.now() })
+  } catch {
+    if (!cached) {
+      ElMessage.error('加载失败')
+    }
+  }
 }, { immediate: true })
 
 async function loadDetail() {
@@ -222,6 +243,7 @@ async function fetchDetail() {
   fetchingDetail.value = true
   try {
     detail.value = await serverApi.fetchDetail(props.serverId)
+    detailCache.set(props.serverId, { detail: detail.value, timestamp: Date.now() })
     ElMessage.success('采集成功')
     if (activeTab.value === 'logs') {
       await loadLogs()
@@ -237,6 +259,7 @@ async function checkStatus() {
   try {
     const result = await serverApi.checkStatus(props.serverId)
     detail.value.is_online = result.online
+    detailCache.set(props.serverId, { detail: detail.value, timestamp: Date.now() })
     emit('server-updated')
     ElMessage.success(`${detail.value.ip}: ${result.online ? '在线' : '离线'}`)
     if (activeTab.value === 'logs') {
