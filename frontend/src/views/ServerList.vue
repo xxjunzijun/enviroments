@@ -9,6 +9,7 @@
         style="width: 260px"
         clearable
         :prefix-icon="Search"
+        autocomplete="off"
       />
       <el-button type="primary" @click="openAdd">
         <el-icon><Plus /></el-icon> 添加服务器
@@ -45,7 +46,7 @@
               @keyup.enter="saveTags(row.id)"
               @blur="saveTags(row.id)"
               ref="tagsInputRef"
-              placeholder="多个标签用逗号分隔"
+              placeholder="多个标签用逗号分隔" autocomplete="off"
             />
           </template>
           <template v-else>
@@ -62,7 +63,7 @@
               style="width: 100px"
               @keyup.enter="saveDesc(row.id)"
               @blur="saveDesc(row.id)"
-              placeholder="备注"
+              placeholder="备注" autocomplete="off"
             />
           </template>
           <template v-else>
@@ -73,7 +74,7 @@
       <el-table-column label="BMC IP" min-width="140">
         <template #default="{ row }">
           <template v-if="editingBmcId === row.id">
-            <el-input v-model="editingBmcValue.bmc_ip" size="small" style="width: 120px" @keyup.enter="saveBmc(row.id)" @blur="saveBmc(row.id)" placeholder="BMC IP" />
+            <el-input v-model="editingBmcValue.bmc_ip" size="small" style="width: 120px" @keyup.enter="saveBmc(row.id)" @blur="saveBmc(row.id)" placeholder="BMC IP" autocomplete="off" />
           </template>
           <template v-else>
             <span class="tags-cell" @click="startEditBmc(row)" title="点击编辑BMC">{{ row.bmc_ip || '—' }}</span>
@@ -83,7 +84,7 @@
       <el-table-column label="BMC 账号" min-width="120">
         <template #default="{ row }">
           <template v-if="editingBmcId === row.id">
-            <el-input v-model="editingBmcValue.bmc_username" size="small" style="width: 100px" @keyup.enter="saveBmc(row.id)" @blur="saveBmc(row.id)" placeholder="用户名" />
+            <el-input v-model="editingBmcValue.bmc_username" size="small" style="width: 100px" @keyup.enter="saveBmc(row.id)" @blur="saveBmc(row.id)" placeholder="用户名" autocomplete="off" />
           </template>
           <template v-else>
             <span class="tags-cell" @click="startEditBmc(row)">{{ row.bmc_username || '—' }}</span>
@@ -93,7 +94,7 @@
       <el-table-column label="BMC 密码" min-width="120">
         <template #default="{ row }">
           <template v-if="editingBmcId === row.id">
-            <el-input v-model="editingBmcValue.bmc_password" size="small" style="width: 100px" show-password @keyup.enter="saveBmc(row.id)" @blur="saveBmc(row.id)" placeholder="密码" />
+            <el-input v-model="editingBmcValue.bmc_password" size="small" style="width: 100px" show-password @keyup.enter="saveBmc(row.id)" @blur="saveBmc(row.id)" placeholder="密码" autocomplete="off" />
           </template>
           <template v-else>
             <span class="tags-cell" @click="startEditBmc(row)">{{ row.bmc_password ? '******' : '—' }}</span>
