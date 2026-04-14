@@ -15,6 +15,9 @@ class Server(Base):
     ssh_key_file = Column(String(500), nullable=True)
     description = Column(Text, nullable=True)
     tags = Column(String(500), default="")
+    bmc_ip = Column(String(45), nullable=True)
+    bmc_username = Column(String(255), nullable=True)
+    bmc_password = Column(String(255), nullable=True)
 
     cached_info = Column(Text, nullable=True)          # JSON: latest full info snapshot
     cached_at = Column(DateTime, nullable=True)

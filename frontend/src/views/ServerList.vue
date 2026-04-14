@@ -34,7 +34,7 @@
       </el-table-column>
       <el-table-column prop="cached_os_version" label="系统版本" min-width="160" show-overflow-tooltip />
       <el-table-column prop="cached_cpu_model" label="CPU 型号" min-width="180" show-overflow-tooltip />
-      <el-table-column prop="tags" label="标签" width="200">
+      <el-table-column prop="tags" label="标签" width="180">
         <template #default="{ row }">
           <template v-if="editingTagsId === row.id">
             <el-input
@@ -48,11 +48,38 @@
             />
           </template>
           <template v-else>
-            <span
-              class="tags-cell"
-              @click="startEditTags(row)"
-              title="点击编辑标签"
-            >{{ row.tags || '—' }}</span>
+            <span class="tags-cell" @click="startEditTags(row)" title="点击编辑标签">{{ row.tags || '—' }}</span>
+          </template>
+        </template>
+      </el-table-column>
+      <el-table-column prop="description" label="备注" min-width="120" show-overflow-tooltip />
+      <el-table-column label="BMC IP" width="130">
+        <template #default="{ row }">
+          <template v-if="editingBmcId === row.id">
+            <el-input v-model="editingBmcValue.bmc_ip" size="small" style="width: 110px" @keyup.enter="saveBmc(row.id)" @blur="saveBmc(row.id)" placeholder="BMC IP" />
+          </template>
+          <template v-else>
+            <span class="tags-cell" @click="startEditBmc(row)" title="点击编辑BMC">{{ row.bmc_ip || '—' }}</span>
+          </template>
+        </template>
+      </el-table-column>
+      <el-table-column label="BMC 账号" width="100">
+        <template #default="{ row }">
+          <template v-if="editingBmcId === row.id">
+            <el-input v-model="editingBmcValue.bmc_username" size="small" style="width: 80px" @keyup.enter="saveBmc(row.id)" @blur="saveBmc(row.id)" placeholder="用户名" />
+          </template>
+          <template v-else>
+            <span class="tags-cell" @click="startEditBmc(row)">{{ row.bmc_username || '—' }}</span>
+          </template>
+        </template>
+      </el-table-column>
+      <el-table-column label="BMC 密码" width="100">
+        <template #default="{ row }">
+          <template v-if="editingBmcId === row.id">
+            <el-input v-model="editingBmcValue.bmc_password" size="small" style="width: 80px" show-password @keyup.enter="saveBmc(row.id)" @blur="saveBmc(row.id)" placeholder="密码" />
+          </template>
+          <template v-else>
+            <span class="tags-cell" @click="startEditBmc(row)">{{ row.bmc_password ? '******' : '—' }}</span>
           </template>
         </template>
       </el-table-column>
@@ -90,6 +117,15 @@
         </el-form-item>
         <el-form-item label="备注">
           <el-input v-model="form.description" type="textarea" rows="2" />
+        </el-form-item>
+        <el-form-item label="BMC IP">
+          <el-input v-model="form.bmc_ip" placeholder="e.g. 192.168.5.1" />
+        </el-form-item>
+        <el-form-item label="BMC 用户名">
+          <el-input v-model="form.bmc_username" placeholder="e.g. admin" />
+        </el-form-item>
+        <el-form-item label="BMC 密码">
+          <el-input v-model="form.bmc_password" show-password placeholder="BMC 密码" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -140,6 +176,9 @@ const defaultForm = () => ({
   ssh_key_file: null,
   description: '',
   tags: '',
+  bmc_ip: '',
+  bmc_username: '',
+  bmc_password: '',
 })
 
 const form = ref(defaultForm())
@@ -147,6 +186,27 @@ const formRef = ref(null)
 const editingTagsId = ref(null)
 const editingTagsValue = ref('')
 const tagsInputRef = ref(null)
+const editingBmcId = ref(null)
+const editingBmcValue = ref({ bmc_ip: '', bmc_username: '', bmc_password: '' })
+
+function startEditBmc(row) {
+  editingBmcId.value = row.id
+  editingBmcValue.value = { bmc_ip: row.bmc_ip || '', bmc_username: row.bmc_username || '', bmc_password: row.bmc_password || '' }
+}
+
+async function saveBmc(id) {
+  if (editingBmcId.value !== id) return
+  const server = servers.value.find(s => s.id === id)
+  if (!server) return
+  try {
+    await serverApi.update(id, { bmc_ip: editingBmcValue.value.bmc_ip, bmc_username: editingBmcValue.value.bmc_username, bmc_password: editingBmcValue.value.bmc_password })
+    Object.assign(server, editingBmcValue.value)
+  } catch (e) {
+    ElMessage.error(e.response?.data?.detail || '保存BMC信息失败')
+  } finally {
+    editingBmcId.value = null
+  }
+}
 
 function startEditTags(row) {
   editingTagsId.value = row.id
@@ -204,6 +264,9 @@ function openEdit(row) {
     ssh_key_file: row.ssh_key_file,
     description: row.description || '',
     tags: row.tags || '',
+    bmc_ip: row.bmc_ip || '',
+    bmc_username: row.bmc_username || '',
+    bmc_password: row.bmc_password || '',
   }
   showAddDialog.value = true
 }

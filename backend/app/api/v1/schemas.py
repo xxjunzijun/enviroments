@@ -12,6 +12,9 @@ class ServerBase(BaseModel):
     ssh_key_file: Optional[str] = None
     description: Optional[str] = None
     tags: str = ""
+    bmc_ip: Optional[str] = None
+    bmc_username: Optional[str] = None
+    bmc_password: Optional[str] = None
 
 
 class ServerCreate(ServerBase):
@@ -27,6 +30,9 @@ class ServerUpdate(BaseModel):
     ssh_key_file: Optional[str] = None
     description: Optional[str] = None
     tags: Optional[str] = None
+    bmc_ip: Optional[str] = None
+    bmc_username: Optional[str] = None
+    bmc_password: Optional[str] = None
 
 
 class ServerResponse(BaseModel):
@@ -39,6 +45,9 @@ class ServerResponse(BaseModel):
     ssh_key_file: Optional[str] = None
     description: Optional[str] = None
     tags: str
+    bmc_ip: Optional[str] = None
+    bmc_username: Optional[str] = None
+    bmc_password: Optional[str] = None
     is_online: bool
     online_checked_at: Optional[datetime] = None
     cached_info: Optional[dict] = None   # JSON object
