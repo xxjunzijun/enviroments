@@ -216,11 +216,11 @@ function startEditDesc(row) {
 
 async function saveDesc(id) {
   if (editingDescId.value !== id) return
-  const server = servers.value.find(s => s.id === id)
-  if (!server) return
+  const idx = servers.value.findIndex(s => s.id === id)
+  if (idx === -1) return
   try {
     await serverApi.update(id, { description: editingDescValue.value })
-    server.description = editingDescValue.value
+    servers.value[idx] = { ...servers.value[idx], description: editingDescValue.value }
   } catch (e) {
     ElMessage.error(e.response?.data?.detail || '保存备注失败')
   } finally {
@@ -235,11 +235,16 @@ function startEditBmc(row) {
 
 async function saveBmc(id) {
   if (editingBmcId.value !== id) return
-  const server = servers.value.find(s => s.id === id)
-  if (!server) return
+  const idx = servers.value.findIndex(s => s.id === id)
+  if (idx === -1) return
   try {
-    await serverApi.update(id, { bmc_ip: editingBmcValue.value.bmc_ip, bmc_username: editingBmcValue.value.bmc_username, bmc_password: editingBmcValue.value.bmc_password })
-    Object.assign(server, editingBmcValue.value)
+    await serverApi.update(id, {
+      bmc_ip: editingBmcValue.value.bmc_ip,
+      bmc_username: editingBmcValue.value.bmc_username,
+      bmc_password: editingBmcValue.value.bmc_password,
+    })
+    // 直接替换整个对象，确保响应式更新
+    servers.value[idx] = { ...servers.value[idx], ...editingBmcValue.value }
   } catch (e) {
     ElMessage.error(e.response?.data?.detail || '保存BMC信息失败')
   } finally {
