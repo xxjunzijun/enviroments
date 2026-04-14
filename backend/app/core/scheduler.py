@@ -114,6 +114,7 @@ async def detail_fetch_task(app):
                     "online": server.is_online,
                     "os_type": info.os_type,
                     "os_version": info.os_version,
+                    "cpu_model": info.cpu_model,
                     "cpu": info.cpu_count,
                     "mem": info.memory_total,
                     "interfaces": info.interfaces or [],

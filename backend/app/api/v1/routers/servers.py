@@ -141,6 +141,7 @@ def fetch_detail(server_id: int, db: Session = Depends(get_db)):
         "online": True,
         "os_type": info.os_type,
         "os_version": info.os_version,
+        "cpu_model": info.cpu_model,
         "cpu": info.cpu_count,
         "mem": info.memory_total,
         "interfaces": info.interfaces or [],
@@ -158,6 +159,7 @@ def fetch_detail(server_id: int, db: Session = Depends(get_db)):
         ip=server.ip,
         os_type=info.os_type,
         os_version=info.os_version,
+        cpu_model=info.cpu_model,
         cpu=info.cpu_count,
         mem=info.memory_total,
         interfaces=info.interfaces or [],
@@ -171,10 +173,12 @@ def fetch_detail(server_id: int, db: Session = Depends(get_db)):
 def _to_response(server: Server) -> ServerResponse:
     cached_info = None
     cached_os_version = None
+    cached_cpu_model = None
     if server.cached_info:
         try:
             cached_info = json.loads(server.cached_info)
             cached_os_version = cached_info.get("os_version") if cached_info else None
+            cached_cpu_model = cached_info.get("cpu_model") if cached_info else None
         except Exception:
             pass
 
@@ -195,4 +199,5 @@ def _to_response(server: Server) -> ServerResponse:
         created_at=server.created_at,
         updated_at=server.updated_at,
         cached_os_version=cached_os_version,
+        cached_cpu_model=cached_cpu_model,
     )

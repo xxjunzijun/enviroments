@@ -45,7 +45,8 @@ class ServerResponse(BaseModel):
     cached_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
-    cached_os_version: Optional[str] = None  # extracted from cached_info for convenience
+    cached_os_version: Optional[str] = None  # extracted from cached_info
+    cached_cpu_model: Optional[str] = None   # extracted from cached_info
 
     class Config:
         from_attributes = True
@@ -68,6 +69,7 @@ class ServerDetailResponse(BaseModel):
     ip: str
     os_type: str
     os_version: Optional[str] = None
+    cpu_model: Optional[str] = None
     cpu: Optional[int] = None
     mem: Optional[int] = None
     interfaces: Optional[list] = None

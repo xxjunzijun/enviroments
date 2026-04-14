@@ -10,7 +10,7 @@
           <el-descriptions :column="1" border size="small">
             <el-descriptions-item label="IP">{{ detail.ip }}</el-descriptions-item>
             <el-descriptions-item label="系统">{{ detail.os_type }} — {{ detail.os_version || '—' }}</el-descriptions-item>
-            <el-descriptions-item label="CPU">{{ detail.cpu ?? '—' }} 核</el-descriptions-item>
+            <el-descriptions-item label="CPU">{{ detail.cpu ?? '—' }} 核{{ detail.cpu_model ? ' / ' + detail.cpu_model : '' }}</el-descriptions-item>
             <el-descriptions-item label="内存">{{ detail.mem ? detail.mem + ' MB' : '—' }}</el-descriptions-item>
             <el-descriptions-item label="标签">{{ detail.tags || '—' }}</el-descriptions-item>
             <el-descriptions-item label="备注">{{ detail.description || '—' }}</el-descriptions-item>
@@ -19,9 +19,12 @@
 
           <el-divider>网卡</el-divider>
           <el-table v-if="detail.interfaces?.length" :data="detail.interfaces" size="small" max-height="200">
-            <el-table-column prop="name" label="网卡" width="100" />
-            <el-table-column prop="ip" label="IP" min-width="130" />
-            <el-table-column prop="mac" label="MAC" width="150" />
+            <el-table-column prop="name" label="网卡" width="90" />
+            <el-table-column prop="ip" label="IP" min-width="120" />
+            <el-table-column prop="mac" label="MAC" width="140" />
+            <el-table-column prop="pci_addr" label="PCI 地址" width="110" show-overflow-tooltip />
+            <el-table-column prop="pci_desc" label="PCI 设备" min-width="180" show-overflow-tooltip />
+            <el-table-column prop="speed" label="速率" width="80" />
           </el-table>
           <el-empty v-else description="暂无网卡信息" />
 

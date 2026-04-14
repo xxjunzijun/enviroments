@@ -33,6 +33,7 @@
         </template>
       </el-table-column>
       <el-table-column prop="cached_os_version" label="系统版本" min-width="160" show-overflow-tooltip />
+      <el-table-column prop="cached_cpu_model" label="CPU 型号" min-width="180" show-overflow-tooltip />
       <el-table-column prop="tags" label="标签" width="200">
         <template #default="{ row }">
           <template v-if="editingTagsId === row.id">
@@ -125,6 +126,7 @@ const filteredServers = computed(() => {
     s.ip?.toLowerCase().includes(q) ||
     s.tags?.toLowerCase().includes(q) ||
     s.cached_os_version?.toLowerCase().includes(q) ||
+    s.cached_cpu_model?.toLowerCase().includes(q) ||
     s.description?.toLowerCase().includes(q)
   )
 })
