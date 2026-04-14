@@ -38,7 +38,7 @@
           </div>
         </template>
         <el-empty v-else-if="loadingDetail" description="加载中…" />
-        <el-empty v-else description="暂无数据，请点击" />
+        <el-empty v-else-if="initialLoading" description="加载中…" />
       </el-tab-pane>
 
       <!-- ── 文件管理 ──────────────────────────────────────────────────────── -->
@@ -178,6 +178,7 @@ const emit = defineEmits(['close', 'server-updated'])
 const activeTab = ref('detail')
 const detail = ref(null)
 const loadingDetail = ref(false)
+const initialLoading = ref(true)  // true 表示首次后台加载尚未完成
 const fetchingDetail = ref(false)
 const entries = ref([])
 const loading = ref(false)
@@ -212,6 +213,9 @@ watch(() => props.serverId, async (id) => {
   if (cached) {
     detail.value = cached.detail
     serverIp.value = cached.detail.ip
+    initialLoading.value = false
+  } else {
+    initialLoading.value = true
   }
 
   // 静默后台刷新
@@ -224,6 +228,8 @@ watch(() => props.serverId, async (id) => {
     if (!cached) {
       ElMessage.error('加载失败')
     }
+  } finally {
+    initialLoading.value = false
   }
 }, { immediate: true })
 

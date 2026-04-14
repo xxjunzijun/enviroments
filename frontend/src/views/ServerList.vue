@@ -1,5 +1,6 @@
 <template>
-  <div>
+  <div style="overflow-x: auto">
+
     <!-- Toolbar -->
     <div class="toolbar">
       <el-input
@@ -18,8 +19,8 @@
     </div>
 
     <!-- Server Table -->
-    <el-table :data="filteredServers" stripe border v-loading="loading" class="server-table" style="width: 100%">
-      <el-table-column label="状态" width="80" align="center">
+    <el-table :data="filteredServers" stripe border v-loading="loading" class="server-table" style="width: 100%; table-layout: fixed; overflow-x: auto">
+      <el-table-column label="状态" min-width="80" align="center">
         <template #default="{ row }">
           <el-tag :type="row.is_online ? 'success' : 'danger'" size="small">
             {{ row.is_online ? '在线' : '离线' }}
@@ -27,14 +28,14 @@
         </template>
       </el-table-column>
       <el-table-column prop="ip" label="IP 地址" min-width="160" />
-      <el-table-column prop="os_type" label="系统" width="100">
+      <el-table-column prop="os_type" label="系统" min-width="100">
         <template #default="{ row }">
           <el-tag size="small">{{ row.os_type }}</el-tag>
         </template>
       </el-table-column>
       <el-table-column prop="cached_os_version" label="系统版本" min-width="160" show-overflow-tooltip />
       <el-table-column prop="cached_cpu_model" label="CPU 型号" min-width="180" show-overflow-tooltip />
-      <el-table-column prop="tags" label="标签" width="180">
+      <el-table-column prop="tags" label="标签" min-width="160">
         <template #default="{ row }">
           <template v-if="editingTagsId === row.id">
             <el-input
@@ -52,38 +53,54 @@
           </template>
         </template>
       </el-table-column>
-      <el-table-column prop="description" label="备注" min-width="120" show-overflow-tooltip />
-      <el-table-column label="BMC IP" width="130">
+      <el-table-column prop="description" label="备注" min-width="120">
+        <template #default="{ row }">
+          <template v-if="editingDescId === row.id">
+            <el-input
+              v-model="editingDescValue"
+              size="small"
+              style="width: 100px"
+              @keyup.enter="saveDesc(row.id)"
+              @blur="saveDesc(row.id)"
+              placeholder="备注"
+            />
+          </template>
+          <template v-else>
+            <span class="tags-cell" @click="startEditDesc(row)" title="点击编辑备注">{{ row.description || '—' }}</span>
+          </template>
+        </template>
+      </el-table-column>
+      <el-table-column label="BMC IP" min-width="140">
         <template #default="{ row }">
           <template v-if="editingBmcId === row.id">
-            <el-input v-model="editingBmcValue.bmc_ip" size="small" style="width: 110px" @keyup.enter="saveBmc(row.id)" @blur="saveBmc(row.id)" placeholder="BMC IP" />
+            <el-input v-model="editingBmcValue.bmc_ip" size="small" style="width: 120px" @keyup.enter="saveBmc(row.id)" @blur="saveBmc(row.id)" placeholder="BMC IP" />
           </template>
           <template v-else>
             <span class="tags-cell" @click="startEditBmc(row)" title="点击编辑BMC">{{ row.bmc_ip || '—' }}</span>
           </template>
         </template>
       </el-table-column>
-      <el-table-column label="BMC 账号" width="100">
+      <el-table-column label="BMC 账号" min-width="120">
         <template #default="{ row }">
           <template v-if="editingBmcId === row.id">
-            <el-input v-model="editingBmcValue.bmc_username" size="small" style="width: 80px" @keyup.enter="saveBmc(row.id)" @blur="saveBmc(row.id)" placeholder="用户名" />
+            <el-input v-model="editingBmcValue.bmc_username" size="small" style="width: 100px" @keyup.enter="saveBmc(row.id)" @blur="saveBmc(row.id)" placeholder="用户名" />
           </template>
           <template v-else>
             <span class="tags-cell" @click="startEditBmc(row)">{{ row.bmc_username || '—' }}</span>
           </template>
         </template>
       </el-table-column>
-      <el-table-column label="BMC 密码" width="100">
+      <el-table-column label="BMC 密码" min-width="120">
         <template #default="{ row }">
           <template v-if="editingBmcId === row.id">
-            <el-input v-model="editingBmcValue.bmc_password" size="small" style="width: 80px" show-password @keyup.enter="saveBmc(row.id)" @blur="saveBmc(row.id)" placeholder="密码" />
+            <el-input v-model="editingBmcValue.bmc_password" size="small" style="width: 100px" show-password @keyup.enter="saveBmc(row.id)" @blur="saveBmc(row.id)" placeholder="密码" />
           </template>
           <template v-else>
             <span class="tags-cell" @click="startEditBmc(row)">{{ row.bmc_password ? '******' : '—' }}</span>
           </template>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="160" align="center">
+      <el-table-column label="操作" min-width="150" align="center">
         <template #default="{ row }">
           <el-button size="small" type="primary" @click="openDetail(row)">查看详情</el-button>
           <el-button size="small" type="danger" @click="remove(row)">删除</el-button>
@@ -186,8 +203,29 @@ const formRef = ref(null)
 const editingTagsId = ref(null)
 const editingTagsValue = ref('')
 const tagsInputRef = ref(null)
+const editingDescId = ref(null)
+const editingDescValue = ref('')
 const editingBmcId = ref(null)
 const editingBmcValue = ref({ bmc_ip: '', bmc_username: '', bmc_password: '' })
+
+function startEditDesc(row) {
+  editingDescId.value = row.id
+  editingDescValue.value = row.description || ''
+}
+
+async function saveDesc(id) {
+  if (editingDescId.value !== id) return
+  const server = servers.value.find(s => s.id === id)
+  if (!server) return
+  try {
+    await serverApi.update(id, { description: editingDescValue.value })
+    server.description = editingDescValue.value
+  } catch (e) {
+    ElMessage.error(e.response?.data?.detail || '保存备注失败')
+  } finally {
+    editingDescId.value = null
+  }
+}
 
 function startEditBmc(row) {
   editingBmcId.value = row.id
