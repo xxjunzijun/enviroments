@@ -109,8 +109,16 @@ https://github.com/xxjunzijun/enviroments
 | v0.1.0 | MVP：服务器管理 + 文件浏览器 + SSH 信息采集 |
 | v0.2.0 | 修复日志路径bug，新增标签行内编辑、搜索栏、detail_fetch日志记录 |
 | v0.3.0 | 新增CPU型号列、网卡PCI信息采集（地址/设备描述/速率） |
+| v0.4.0 | 新增备注主界面可编辑、BMC IP/账号/密码字段 |
 
 ## 开发记录
+
+### v0.4.0 (2026-04-14)
+- `Server` 模型新增 `bmc_ip`、`bmc_username`、`bmc_password` 三个字段
+- `ServerResponse` 和 `ServerUpdate` schema 同步更新
+- 主界面新增"备注"列（直接可编辑）、"BMC IP"、"BMC账号"、"BMC密码"三列（点击行内编辑）
+- 添加/编辑服务器弹窗新增 BMC 信息表单
+- 数据库通过 `ALTER TABLE` 完成迁移
 
 ### v0.3.0 (2026-04-14)
 - 新增 `_cpu_model_linux()` 多平台CPU型号采集（device-tree → lscpu → dmidecode → cpuinfo）
