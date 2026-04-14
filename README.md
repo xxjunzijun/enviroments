@@ -108,8 +108,17 @@ https://github.com/xxjunzijun/enviroments
 |------|------|
 | v0.1.0 | MVP：服务器管理 + 文件浏览器 + SSH 信息采集 |
 | v0.2.0 | 修复日志路径bug，新增标签行内编辑、搜索栏、detail_fetch日志记录 |
+| v0.3.0 | 新增CPU型号列、网卡PCI信息采集（地址/设备描述/速率） |
 
 ## 开发记录
+
+### v0.3.0 (2026-04-14)
+- 新增 `_cpu_model_linux()` 多平台CPU型号采集（device-tree → lscpu → dmidecode → cpuinfo）
+- 新增 `_pci_of_interface()` 通过 `lspci -nnk` + sysfs 采集网卡PCI地址、设备描述、速率
+- 主界面新增"CPU型号"列，搜索支持CPU型号关键字过滤
+- 详情页CPU行显示"核数 / 型号"，网卡表格新增PCI地址/设备/速率三列
+- `ServerResponse` 和 `ServerDetailResponse` 新增 `cpu_model` 字段
+- `detail_fetch` 日志snapshot同步包含 `cpu_model` 和网卡PCI信息
 
 ### v0.2.0 (2026-04-13)
 - **Bug修复**：`servers.py` 和 `logs.py` 的日志路径计算错误（3层/4层dirname），统一改为从 `scheduler.py` 导入 `LOG_DIR`
