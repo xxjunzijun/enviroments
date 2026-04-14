@@ -50,7 +50,7 @@
             />
           </template>
           <template v-else>
-            <span class="tags-cell" @click="startEditTags(row)" title="点击编辑标签">{{ row.tags || '—' }}</span>
+            <span class="tags-cell" @mousedown.prevent="startEditTags(row)" title="点击编辑标签">{{ row.tags || '—' }}</span>
           </template>
         </template>
       </el-table-column>
@@ -67,7 +67,7 @@
             />
           </template>
           <template v-else>
-            <span class="tags-cell" @click="startEditDesc(row)" title="点击编辑备注">{{ row.description || '—' }}</span>
+            <span class="tags-cell" @mousedown.prevent="startEditDesc(row)" title="点击编辑备注">{{ row.description || '—' }}</span>
           </template>
         </template>
       </el-table-column>
@@ -77,7 +77,7 @@
             <el-input v-model="editingBmcValue.bmc_ip" size="small" style="width: 120px" @keyup.enter="saveBmc(row.id)" @blur="saveBmc(row.id)" placeholder="BMC IP" autocomplete="off" />
           </template>
           <template v-else>
-            <span class="tags-cell" @click="startEditBmc(row)" title="点击编辑BMC">{{ row.bmc_ip || '—' }}</span>
+            <span class="tags-cell" @mousedown.prevent="startEditBmc(row)" title="点击编辑BMC">{{ row.bmc_ip || '—' }}</span>
           </template>
         </template>
       </el-table-column>
@@ -87,7 +87,7 @@
             <el-input v-model="editingBmcValue.bmc_username" size="small" style="width: 100px" @keyup.enter="saveBmc(row.id)" @blur="saveBmc(row.id)" placeholder="用户名" autocomplete="off" />
           </template>
           <template v-else>
-            <span class="tags-cell" @click="startEditBmc(row)">{{ row.bmc_username || '—' }}</span>
+            <span class="tags-cell" @mousedown.prevent="startEditBmc(row)">{{ row.bmc_username || '—' }}</span>
           </template>
         </template>
       </el-table-column>
@@ -97,7 +97,7 @@
             <el-input v-model="editingBmcValue.bmc_password" size="small" style="width: 100px" show-password @keyup.enter="saveBmc(row.id)" @blur="saveBmc(row.id)" placeholder="密码" autocomplete="off" />
           </template>
           <template v-else>
-            <span class="tags-cell" @click="startEditBmc(row)">{{ row.bmc_password ? '******' : '—' }}</span>
+            <span class="tags-cell" @mousedown.prevent="startEditBmc(row)">{{ row.bmc_password ? '******' : '—' }}</span>
           </template>
         </template>
       </el-table-column>
@@ -158,7 +158,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Refresh, Search } from '@element-plus/icons-vue'
 import { servers as serverApi } from '../api/index.js'
@@ -206,12 +206,16 @@ const editingTagsValue = ref('')
 const tagsInputRef = ref(null)
 const editingDescId = ref(null)
 const editingDescValue = ref('')
+const descInputRef = ref(null)
 const editingBmcId = ref(null)
 const editingBmcValue = ref({ bmc_ip: '', bmc_username: '', bmc_password: '' })
+
+const bmcInputRef = ref(null)
 
 function startEditDesc(row) {
   editingDescId.value = row.id
   editingDescValue.value = row.description || ''
+  nextTick(() => descInputRef.value?.focus())
 }
 
 async function saveDesc(id) {
@@ -231,6 +235,12 @@ async function saveDesc(id) {
 function startEditBmc(row) {
   editingBmcId.value = row.id
   editingBmcValue.value = { bmc_ip: row.bmc_ip || '', bmc_username: row.bmc_username || '', bmc_password: row.bmc_password || '' }
+  nextTick(() => {
+    // 聚焦该行第一个可见的 BMC 输入框
+    const rowEl = [...document.querySelectorAll('.el-table__body tr')]
+      .find(tr => tr.querySelector('[placeholder="BMC IP"]'))
+    rowEl?.querySelector('input')?.focus()
+  })
 }
 
 async function saveBmc(id) {
@@ -255,6 +265,7 @@ async function saveBmc(id) {
 function startEditTags(row) {
   editingTagsId.value = row.id
   editingTagsValue.value = row.tags || ''
+  nextTick(() => tagsInputRef.value?.focus())
 }
 
 async function saveTags(id) {
