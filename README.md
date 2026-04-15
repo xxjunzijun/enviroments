@@ -76,8 +76,7 @@ pnpm run dev
 ### ❌ 待做
 
 - 拓扑图（服务器网口 ↔ 交换机 ↔ 端口 映射）
-- LLDP 邻居自动发现
-- Alembic 数据库迁移（替代手动 ALTER TABLE）
+- Web SSH 功能
 
 ---
 
