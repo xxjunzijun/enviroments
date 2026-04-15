@@ -36,12 +36,6 @@
       </el-table-column>
       <el-table-column prop="cached_os_version" label="系统版本" min-width="160" show-overflow-tooltip />
       <el-table-column prop="cached_cpu_model" label="CPU 型号" min-width="180" show-overflow-tooltip />
-      <el-table-column prop="cached_hostname" label="主机名" min-width="140" show-overflow-tooltip />
-      <el-table-column prop="cached_mem" label="内存" min-width="100" align="center">
-        <template #default="{ row }">
-          {{ row.cached_mem ? row.cached_mem + ' MB' : '—' }}
-        </template>
-      </el-table-column>
       <el-table-column prop="tags" label="标签" min-width="160">
         <template #default="{ row }">
           <template v-if="editingTagsId === row.id">
@@ -100,7 +94,7 @@
       <el-table-column label="BMC 密码" min-width="120">
         <template #default="{ row }">
           <template v-if="editingBmcId === row.id">
-            <el-input v-model="editingBmcValue.bmc_password" size="small" style="width: 100px" show-password @keyup.enter="saveBmc(row.id)" @blur="saveBmc(row.id)" placeholder="密码" autocomplete="off" />
+            <el-input v-model="editingBmcValue.bmc_password" size="small" style="width: 100px" @keyup.enter="saveBmc(row.id)" @blur="saveBmc(row.id)" placeholder="密码" autocomplete="off" />
           </template>
           <template v-else>
             <span class="tags-cell" @mousedown.prevent="startEditBmc($event, row, 'bmc_password')">{{ row.bmc_password ? '******' : '—' }}</span>
@@ -162,7 +156,7 @@
           <el-input v-model="form.bmc_username" placeholder="e.g. admin" />
         </el-form-item>
         <el-form-item label="BMC 密码">
-          <el-input v-model="form.bmc_password" show-password placeholder="BMC 密码" />
+          <el-input v-model="form.bmc_password" placeholder="BMC 密码" />
         </el-form-item>
       </el-form>
       <template #footer>

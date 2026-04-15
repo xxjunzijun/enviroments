@@ -90,6 +90,9 @@ export const switches = {
     api.get(`/switches/${id}/detail`, { params: { refresh } }).then(r => r.data),
 
   checkStatus: (id) => api.get(`/switches/${id}/status`).then(r => r.data),
+
+  setServers: (switchId, serverIds) =>
+    api.post(`/switches/${switchId}/servers`, { server_ids: serverIds }),
 }
 
 export const serverSwitchAssoc = {

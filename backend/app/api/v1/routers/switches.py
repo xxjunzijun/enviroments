@@ -9,7 +9,7 @@ from app.models.switch import Switch
 from app.models.server import Server
 from app.api.v1.schemas import (
     SwitchCreate, SwitchUpdate, SwitchResponse,
-    SwitchListResponse, ServerSwitchAssocRequest,
+    SwitchListResponse, ServerSwitchAssocRequest, ServerIdsRequest,
     SwitchDetailResponse, SwitchStatusResponse,
 )
 from infrastructure.ssh_client import get_server_info_via_ssh, check_online, ServerInfo
@@ -208,6 +208,17 @@ def get_server_switches(server_id: int, db: Session = Depends(get_db)):
         total=len(server.switches),
         switches=[_to_response(s) for s in server.switches]
     )
+
+
+@router.post("/{switch_id}/servers", status_code=204)
+def set_switch_servers(switch_id: int, data: ServerIdsRequest, db: Session = Depends(get_db)):
+    """设置交换机关联的服务器列表（多台）"""
+    switch = db.query(Switch).filter(Switch.id == switch_id).first()
+    if not switch:
+        raise HTTPException(status_code=404, detail="Switch not found")
+    servers = db.query(Server).filter(Server.id.in_(data.server_ids)).all()
+    switch.servers = servers
+    db.commit()
 
 
 def _to_response(switch: Switch) -> SwitchResponse:

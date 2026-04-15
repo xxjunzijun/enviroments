@@ -145,6 +145,10 @@ class ServerSwitchAssocRequest(BaseModel):
     switch_ids: list[int]
 
 
+class ServerIdsRequest(BaseModel):
+    server_ids: list[int]
+
+
 class SwitchDetailResponse(BaseModel):
     id: int
     name: str

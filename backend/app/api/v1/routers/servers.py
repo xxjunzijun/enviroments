@@ -86,6 +86,9 @@ def create_server(data: ServerCreate, db: Session = Depends(get_db)):
         ssh_key_file=data.ssh_key_file,
         description=data.description,
         tags=data.tags,
+        bmc_ip=data.bmc_ip,
+        bmc_username=data.bmc_username,
+        bmc_password=data.bmc_password,
     )
     db.add(server)
     db.commit()
