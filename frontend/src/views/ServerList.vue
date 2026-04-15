@@ -107,6 +107,14 @@
           </template>
         </template>
       </el-table-column>
+      <el-table-column label="使用人" min-width="120" align="center">
+        <template #default="{ row }">
+          <span v-if="row.occupied_by" class="occupied-by" @click="handleRelease(row)">
+            {{ row.occupied_by }}
+          </span>
+          <el-link v-else type="primary" @click="handleOccupy(row)">占用</el-link>
+        </template>
+      </el-table-column>
       <el-table-column label="关联交换机" min-width="120" align="center">
         <template #default="{ row }">
           <el-link type="primary" @click="openAssocDialog(row)">{{ row.assoc_switch_count ?? '—' }}</el-link>
@@ -403,6 +411,29 @@ async function checkAllStatus() {
   ElMessage.info(`检测完成：${online}/${results.length} 在线`)
 }
 
+async function handleOccupy(row) {
+  try {
+    const updated = await serverApi.occupy(row.id)
+    const idx = servers.value.findIndex(s => s.id === row.id)
+    if (idx !== -1) servers.value[idx] = { ...servers.value[idx], occupied_by: updated.occupied_by }
+    ElMessage.success(`已占用 ${row.ip}`)
+  } catch (e) {
+    ElMessage.error(e.response?.data?.detail || '占用失败')
+  }
+}
+
+async function handleRelease(row) {
+  try {
+    await ElMessageBox.confirm(`确定释放服务器 "${row.ip}" 吗？`, '确认释放', { type: 'warning' })
+    const updated = await serverApi.release(row.id)
+    const idx = servers.value.findIndex(s => s.id === row.id)
+    if (idx !== -1) servers.value[idx] = { ...servers.value[idx], occupied_by: updated.occupied_by }
+    ElMessage.success('已释放')
+  } catch (e) {
+    if (e !== 'cancel') ElMessage.error(e.response?.data?.detail || '释放失败')
+  }
+}
+
 async function openAssocDialog(row) {
   assocTargetServer.value = row
   selectedSwitchIds.value = []
@@ -463,4 +494,11 @@ onMounted(loadServers)
   background: #f0f9eb;
   color: #67c23a;
 }
+
+.occupied-by {
+  color: #e6a23c;
+  font-weight: 500;
+  cursor: pointer;
+}
+.occupied-by:hover { text-decoration: underline; }
 </style>

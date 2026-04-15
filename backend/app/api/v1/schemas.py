@@ -59,6 +59,7 @@ class ServerResponse(BaseModel):
     cached_hostname: Optional[str] = None    # extracted from cached_info
     cached_mem: Optional[int] = None         # extracted from cached_info (MB)
     cached_interfaces: Optional[list] = None # extracted from cached_info (list, light)
+    occupied_by: Optional[str] = None
     assoc_switch_count: Optional[int] = None
 
     class Config:

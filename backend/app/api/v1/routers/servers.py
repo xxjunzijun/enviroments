@@ -35,6 +35,34 @@ def list_servers(db: Session = Depends(get_db)):
     )
 
 
+@router.post("/{server_id}/occupy", response_model=ServerResponse)
+def occupy_server(server_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    """占用服务器（只有当前无占用或本人可占用）"""
+    server = db.query(Server).filter(Server.id == server_id).first()
+    if not server:
+        raise HTTPException(status_code=404, detail="Server not found")
+    if server.occupied_by and server.occupied_by != current_user.username:
+        raise HTTPException(status_code=409, detail=f"已被 {server.occupied_by} 占用")
+    server.occupied_by = current_user.username
+    db.commit()
+    db.refresh(server)
+    return _to_response(server)
+
+
+@router.post("/{server_id}/release", response_model=ServerResponse)
+def release_server(server_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    """释放服务器（只有本人或管理员可释放）"""
+    server = db.query(Server).filter(Server.id == server_id).first()
+    if not server:
+        raise HTTPException(status_code=404, detail="Server not found")
+    if server.occupied_by and server.occupied_by != current_user.username:
+        raise HTTPException(status_code=403, detail="只能本人或管理员释放")
+    server.occupied_by = None
+    db.commit()
+    db.refresh(server)
+    return _to_response(server)
+
+
 @router.get("/{server_id}", response_model=ServerResponse)
 def get_server(server_id: int, db: Session = Depends(get_db)):
     server = db.query(Server).filter(Server.id == server_id).first()
@@ -240,5 +268,6 @@ def _to_response(server: Server) -> ServerResponse:
         cached_hostname=cached_hostname,
         cached_mem=cached_mem,
         cached_interfaces=cached_interfaces,
+        occupied_by=server.occupied_by,
         assoc_switch_count=len(server.switches) if server.switches else 0,
     )
