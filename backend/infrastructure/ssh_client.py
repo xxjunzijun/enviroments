@@ -321,17 +321,32 @@ def _interact_exec(ssh_client, command: str, expect_prompt: str = ">", timeout: 
     Execute a command via an interactive shell session (paramiko invoke_shell).
     Waits for the command prompt to return, then returns the output.
     Suitable for network device CLIs (Huawei VRP, H3C Comware, etc.).
+    Handles login banners and password-change prompts automatically.
     """
     output = ""
     chan = ssh_client.invoke_shell(width=200, height=80)
     chan.settimeout(timeout)
 
     # Drain any initial output (login banner, prompts)
+    import time
+    time.sleep(0.5)
     try:
         while chan.recv_ready():
             output += chan.recv(65535).decode('utf-8', errors='replace')
+            time.sleep(0.3)
     except Exception:
         pass
+
+    # If password-change prompt appears, answer 'N' to skip
+    if "Change now" in output or "[Y/N]" in output:
+        chan.send("N\r\n")
+        time.sleep(0.5)
+        try:
+            while chan.recv_ready():
+                output += chan.recv(65535).decode('utf-8', errors='replace')
+                time.sleep(0.3)
+        except Exception:
+            pass
 
     # Send the command
     chan.send(command + "\r\n")
