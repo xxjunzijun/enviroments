@@ -1,9 +1,10 @@
 import os
 import json
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+from app.core.auth import get_current_user
 from app.core.scheduler import LOG_DIR
 
-router = APIRouter(prefix="/servers/{server_id}/logs", tags=["logs"])
+router = APIRouter(prefix="/servers/{server_id}/logs", tags=["logs"], dependencies=[Depends(get_current_user)])
 
 
 @router.get("")
@@ -40,7 +41,7 @@ def clear_logs(server_id: int):
 
 # ─── Switch logs ────────────────────────────────────────────────────────────────
 
-switch_logs_router = APIRouter(prefix="/switches/{switch_id}/logs", tags=["switch_logs"])
+switch_logs_router = APIRouter(prefix="/switches/{switch_id}/logs", tags=["switch_logs"], dependencies=[Depends(get_current_user)])
 
 
 @switch_logs_router.get("")

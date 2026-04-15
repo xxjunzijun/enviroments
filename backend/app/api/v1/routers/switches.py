@@ -4,6 +4,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.core.database import get_db
+from app.core.auth import get_current_user
 from app.models.switch import Switch
 from app.models.server import Server
 from app.api.v1.schemas import (
@@ -14,7 +15,7 @@ from app.api.v1.schemas import (
 from infrastructure.ssh_client import get_server_info_via_ssh, check_online, ServerInfo
 from app.core.scheduler import LOG_DIR as _LOG_DIR
 
-router = APIRouter(prefix="/switches", tags=["switches"])
+router = APIRouter(prefix="/switches", tags=["switches"], dependencies=[Depends(get_current_user)])
 
 
 def _write_log(switch_id: int, payload: dict):

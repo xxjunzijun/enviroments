@@ -1,12 +1,13 @@
 import io
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from app.core.auth import get_current_user
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from app.core.database import SessionLocal
 from app.models.server import Server
 from infrastructure.sftp_client import list_directory, download_file, upload_file, FileEntry
 
-router = APIRouter(prefix="/servers/{server_id}/files", tags=["files"])
+router = APIRouter(prefix="/servers/{server_id}/files", tags=["files"], dependencies=[Depends(get_current_user)])
 
 
 # ── Request/Response models ────────────────────────────────────────────────────

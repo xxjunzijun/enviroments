@@ -1,11 +1,24 @@
 <template>
   <el-container class="layout">
     <el-header class="header">
-      <h2>🖥️ Enviroments — 服务器管理</h2>
+      <h2>🖥️ Enviroments</h2>
       <el-tabs v-model="activeTab" class="main-tabs" @tab-change="onTabChange">
         <el-tab-pane label="服务器列表" name="servers" />
         <el-tab-pane label="交换机列表" name="switches" />
       </el-tabs>
+      <div class="header-right">
+        <el-dropdown trigger="click" @command="handleCommand">
+          <span class="user-name">
+            👤 {{ username }}
+            <el-icon><ArrowDown /></el-icon>
+          </span>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="logout">退出登录</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+      </div>
     </el-header>
     <el-main>
       <ServerList v-if="activeTab === 'servers'" />
@@ -15,14 +28,25 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+import { ArrowDown } from '@element-plus/icons-vue'
 import ServerList from './views/ServerList.vue'
 import SwitchList from './views/SwitchList.vue'
 
 const activeTab = ref('servers')
+const username = ref(localStorage.getItem('username') || '')
 
 function onTabChange(tab) {
   activeTab.value = tab
+}
+
+function handleCommand(cmd) {
+  if (cmd === 'logout') {
+    localStorage.removeItem('token')
+    localStorage.removeItem('username')
+    localStorage.removeItem('user_id')
+    window.location.reload()
+  }
 }
 </script>
 
@@ -70,6 +94,19 @@ body {
   height: 3px;
 }
 .el-tabs.main-tabs .el-tabs__nav { height: 60px; }
+
+.header-right { margin-left: auto; }
+.user-name {
+  color: #aaa;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+.user-name:hover { color: #fff; background: rgba(255,255,255,0.1); }
 
 .el-main { padding: 24px; }
 </style>

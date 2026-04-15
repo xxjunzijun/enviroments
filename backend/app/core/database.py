@@ -27,4 +27,5 @@ def init_db():
     """Create all tables."""
     from app.models.server import Server
     from app.models.switch import Switch
+    from app.models.user import User
     Base.metadata.create_all(bind=engine)

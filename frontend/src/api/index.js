@@ -5,6 +5,35 @@ const api = axios.create({
   timeout: 15000,
 })
 
+// ── Auth interceptor ──────────────────────────────────────────────────────────
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token')
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+  return config
+})
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token')
+      localStorage.removeItem('username')
+      localStorage.removeItem('user_id')
+      window.location.href = '/#/login'
+    }
+    return Promise.reject(error)
+  }
+)
+
+// ── Auth API (bypass interceptor for login/register) ─────────────────────────
+export const auth = {
+  login: (data) => axios.post('/api/v1/auth/login', data).then(r => r.data),
+  register: (data) => axios.post('/api/v1/auth/register', data).then(r => r.data),
+  me: () => api.get('/auth/me').then(r => r.data),
+}
+
 export const servers = {
   list: () => api.get('/servers').then(r => r.data),
 

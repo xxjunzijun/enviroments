@@ -14,6 +14,7 @@ from app.core.database import init_db
 from app.api.v1.routers import servers, files, switches
 from app.api.v1.routers import logs as logs_router
 from app.api.v1.routers.logs import switch_logs_router
+from app.api.v1.routers import auth
 
 
 def get_frontend_dist():
@@ -49,6 +50,7 @@ app.include_router(files.router, prefix="/api/v1")
 app.include_router(logs_router.router, prefix="/api/v1")
 app.include_router(switches.router, prefix="/api/v1")
 app.include_router(switch_logs_router, prefix="/api/v1")
+app.include_router(auth.router, prefix="/api/v1")
 
 @app.get("/")
 def root():

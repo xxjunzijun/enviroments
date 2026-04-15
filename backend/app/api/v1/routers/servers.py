@@ -4,6 +4,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.core.database import get_db
+from app.core.auth import get_current_user
 from app.models.server import Server
 from app.api.v1.schemas import (
     ServerCreate, ServerUpdate, ServerResponse,
@@ -11,7 +12,7 @@ from app.api.v1.schemas import (
 )
 from infrastructure.ssh_client import get_server_info_via_ssh, check_online, ServerInfo
 
-router = APIRouter(prefix="/servers", tags=["servers"])
+router = APIRouter(prefix="/servers", tags=["servers"], dependencies=[Depends(get_current_user)])
 
 from app.core.scheduler import LOG_DIR as _LOG_DIR
 
