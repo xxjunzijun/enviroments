@@ -77,7 +77,7 @@
             <el-input v-model="editingBmcValue.bmc_ip" size="small" style="width: 120px" @keyup.enter="saveBmc(row.id)" @blur="saveBmc(row.id)" placeholder="BMC IP" autocomplete="off" />
           </template>
           <template v-else>
-            <span class="tags-cell" @mousedown.prevent="startEditBmc(row, 'bmc_ip')" title="点击编辑BMC">{{ row.bmc_ip || '—' }}</span>
+            <span class="tags-cell" @mousedown.prevent="startEditBmc($event, row, 'bmc_ip')" title="点击编辑BMC">{{ row.bmc_ip || '—' }}</span>
           </template>
         </template>
       </el-table-column>
@@ -87,7 +87,7 @@
             <el-input v-model="editingBmcValue.bmc_username" size="small" style="width: 100px" @keyup.enter="saveBmc(row.id)" @blur="saveBmc(row.id)" placeholder="用户名" autocomplete="off" />
           </template>
           <template v-else>
-            <span class="tags-cell" @mousedown.prevent="startEditBmc(row, 'bmc_username')">{{ row.bmc_username || '—' }}</span>
+            <span class="tags-cell" @mousedown.prevent="startEditBmc($event, row, 'bmc_username')">{{ row.bmc_username || '—' }}</span>
           </template>
         </template>
       </el-table-column>
@@ -97,7 +97,7 @@
             <el-input v-model="editingBmcValue.bmc_password" size="small" style="width: 100px" show-password @keyup.enter="saveBmc(row.id)" @blur="saveBmc(row.id)" placeholder="密码" autocomplete="off" />
           </template>
           <template v-else>
-            <span class="tags-cell" @mousedown.prevent="startEditBmc(row, 'bmc_password')">{{ row.bmc_password ? '******' : '—' }}</span>
+            <span class="tags-cell" @mousedown.prevent="startEditBmc($event, row, 'bmc_password')">{{ row.bmc_password ? '******' : '—' }}</span>
           </template>
         </template>
       </el-table-column>
@@ -253,14 +253,15 @@ async function saveDesc(id) {
   }
 }
 
-function startEditBmc(row, field) {
+function startEditBmc(event, row, field) {
   editingBmcId.value = row.id
   editingBmcValue.value = { bmc_ip: row.bmc_ip || '', bmc_username: row.bmc_username || '', bmc_password: row.bmc_password || '' }
   nextTick(() => {
-    // 聚焦该行对应列的输入框
-    const rowEl = [...document.querySelectorAll('.el-table__body tr')]
-      .find(tr => tr.querySelector(`[placeholder="${field === 'bmc_ip' ? 'BMC IP' : field === 'bmc_username' ? '用户名' : '密码'}"]`))
-    rowEl?.querySelector('input')?.focus()
+    // 通过事件 target 往上找到该行 tr，再聚焦对应列的输入框
+    const tr = event.target.closest('.el-table__body tr')
+    if (!tr) return
+    const ph = field === 'bmc_ip' ? 'BMC IP' : field === 'bmc_username' ? '用户名' : '密码'
+    tr.querySelector(`[placeholder="${ph}"]`)?.focus()
   })
 }
 
