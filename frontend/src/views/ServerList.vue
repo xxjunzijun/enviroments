@@ -36,6 +36,12 @@
       </el-table-column>
       <el-table-column prop="cached_os_version" label="系统版本" min-width="160" show-overflow-tooltip />
       <el-table-column prop="cached_cpu_model" label="CPU 型号" min-width="180" show-overflow-tooltip />
+      <el-table-column prop="cached_hostname" label="主机名" min-width="140" show-overflow-tooltip />
+      <el-table-column prop="cached_mem" label="内存" min-width="100" align="center">
+        <template #default="{ row }">
+          {{ row.cached_mem ? row.cached_mem + ' MB' : '—' }}
+        </template>
+      </el-table-column>
       <el-table-column prop="tags" label="标签" min-width="160">
         <template #default="{ row }">
           <template v-if="editingTagsId === row.id">

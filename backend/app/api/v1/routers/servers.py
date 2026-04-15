@@ -174,11 +174,17 @@ def _to_response(server: Server) -> ServerResponse:
     cached_info = None
     cached_os_version = None
     cached_cpu_model = None
+    cached_hostname = None
+    cached_mem = None
+    cached_interfaces = None
     if server.cached_info:
         try:
             cached_info = json.loads(server.cached_info)
             cached_os_version = cached_info.get("os_version") if cached_info else None
             cached_cpu_model = cached_info.get("cpu_model") if cached_info else None
+            cached_hostname = cached_info.get("hostname") if cached_info else None
+            cached_mem = cached_info.get("mem") if cached_info else None
+            cached_interfaces = cached_info.get("interfaces") if cached_info else None
         except Exception:
             pass
 
@@ -203,5 +209,8 @@ def _to_response(server: Server) -> ServerResponse:
         updated_at=server.updated_at,
         cached_os_version=cached_os_version,
         cached_cpu_model=cached_cpu_model,
+        cached_hostname=cached_hostname,
+        cached_mem=cached_mem,
+        cached_interfaces=cached_interfaces,
         assoc_switch_count=len(server.switches) if server.switches else 0,
     )

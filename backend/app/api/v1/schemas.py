@@ -56,6 +56,9 @@ class ServerResponse(BaseModel):
     updated_at: datetime
     cached_os_version: Optional[str] = None  # extracted from cached_info
     cached_cpu_model: Optional[str] = None   # extracted from cached_info
+    cached_hostname: Optional[str] = None    # extracted from cached_info
+    cached_mem: Optional[int] = None         # extracted from cached_info (MB)
+    cached_interfaces: Optional[list] = None # extracted from cached_info (list, light)
     assoc_switch_count: Optional[int] = None
 
     class Config:
