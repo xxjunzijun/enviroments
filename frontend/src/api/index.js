@@ -18,7 +18,8 @@ export const servers = {
 
   checkStatus: (id) => api.get(`/servers/${id}/status`).then(r => r.data),
 
-  fetchDetail: (id) => api.get(`/servers/${id}/detail`).then(r => r.data),
+  fetchDetail: (id, refresh = false) =>
+    api.get(`/servers/${id}/detail`, { params: { refresh } }).then(r => r.data),
 }
 
 export const files = {
@@ -52,7 +53,8 @@ export const switches = {
 
   getDetail: (id) => api.get(`/switches/${id}/detail`).then(r => r.data),
 
-  fetchDetail: (id) => api.get(`/switches/${id}/detail`).then(r => r.data),
+  fetchDetail: (id, refresh = false) =>
+    api.get(`/switches/${id}/detail`, { params: { refresh } }).then(r => r.data),
 
   checkStatus: (id) => api.get(`/switches/${id}/status`).then(r => r.data),
 }

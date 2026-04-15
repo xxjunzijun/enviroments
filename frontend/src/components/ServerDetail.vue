@@ -248,7 +248,7 @@ async function loadDetail() {
 async function fetchDetail() {
   fetchingDetail.value = true
   try {
-    detail.value = await serverApi.fetchDetail(props.serverId)
+    detail.value = await serverApi.fetchDetail(props.serverId, true)
     detailCache.set(props.serverId, { detail: detail.value, timestamp: Date.now() })
     ElMessage.success('采集成功')
     if (activeTab.value === 'logs') {

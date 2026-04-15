@@ -114,11 +114,38 @@ def check_status(server_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/{server_id}/detail", response_model=ServerDetailResponse)
-def fetch_detail(server_id: int, db: Session = Depends(get_db)):
+def fetch_detail(server_id: int, refresh: bool = False, db: Session = Depends(get_db)):
+    """
+    获取服务器详情。
+    - refresh=false（默认）：优先从 cached_info 返回，毫秒级响应
+    - refresh=true：强制 SSH 重新采集（"重新采集"按钮使用）
+    """
     server = db.query(Server).filter(Server.id == server_id).first()
     if not server:
         raise HTTPException(status_code=404, detail="Server not found")
 
+    # 不强制刷新时，优先返回缓存
+    if not refresh and server.cached_info:
+        try:
+            cached = json.loads(server.cached_info)
+            return ServerDetailResponse(
+                id=server.id,
+                ip=server.ip,
+                os_type=cached.get("os_type", server.os_type),
+                os_version=cached.get("os_version"),
+                cpu_model=cached.get("cpu_model"),
+                cpu=cached.get("cpu"),
+                mem=cached.get("mem"),
+                interfaces=cached.get("interfaces") or [],
+                is_online=server.is_online,
+                description=server.description,
+                tags=server.tags,
+                cached_at=server.cached_at,
+            )
+        except Exception:
+            pass  # 缓存损坏，降级到 SSH 采集
+
+    # SSH 重新采集
     info: ServerInfo = get_server_info_via_ssh(
         ip=server.ip,
         username=server.ssh_username,

@@ -137,7 +137,7 @@ watch(() => props.switchId, async (id) => {
 async function fetchDetail() {
   fetchingDetail.value = true
   try {
-    detail.value = await switchApi.fetchDetail(props.switchId)
+    detail.value = await switchApi.fetchDetail(props.switchId, true)
     switchName.value = detail.value.name
     detailCache.set(props.switchId, { detail: detail.value, timestamp: Date.now() })
     ElMessage.success('采集成功')
