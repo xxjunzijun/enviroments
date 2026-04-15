@@ -1,4 +1,6 @@
 import json
+import os
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.core.database import get_db
@@ -6,10 +8,22 @@ from app.models.switch import Switch
 from app.models.server import Server
 from app.api.v1.schemas import (
     SwitchCreate, SwitchUpdate, SwitchResponse,
-    SwitchListResponse, ServerSwitchAssocRequest
+    SwitchListResponse, ServerSwitchAssocRequest,
+    SwitchDetailResponse, SwitchStatusResponse,
 )
+from infrastructure.ssh_client import get_server_info_via_ssh, check_online, ServerInfo
+from app.core.scheduler import LOG_DIR as _LOG_DIR
 
 router = APIRouter(prefix="/switches", tags=["switches"])
+
+
+def _write_log(switch_id: int, payload: dict):
+    os.makedirs(_LOG_DIR, exist_ok=True)
+    payload = dict(payload)
+    payload["time"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    line = json.dumps(payload, ensure_ascii=False)
+    with open(os.path.join(_LOG_DIR, f"switch_{switch_id}.log"), "a", encoding="utf-8") as f:
+        f.write(line + "\n")
 
 
 @router.get("", response_model=SwitchListResponse)
@@ -73,9 +87,101 @@ def delete_switch(switch_id: int, db: Session = Depends(get_db)):
     db.commit()
 
 
+@router.get("/{switch_id}/detail", response_model=SwitchDetailResponse)
+def fetch_switch_detail(switch_id: int, db: Session = Depends(get_db)):
+    """通过 SSH 采集交换机详细信息"""
+    switch = db.query(Switch).filter(Switch.id == switch_id).first()
+    if not switch:
+        raise HTTPException(status_code=404, detail="Switch not found")
+
+    info: ServerInfo = get_server_info_via_ssh(
+        ip=switch.ip,
+        username=switch.username,
+        password=switch.password,
+        port=switch.port,
+    )
+
+    now = datetime.utcnow()
+    if info.error:
+        _write_log(switch_id, {
+            "type": "detail_fetch",
+            "online": False,
+            "error": info.error,
+        })
+        raise HTTPException(status_code=502, detail=f"SSH error: {info.error}")
+
+    snapshot = {
+        "type": "detail_fetch",
+        "online": True,
+        "os_type": info.os_type,
+        "os_version": info.os_version,
+        "cpu_model": info.cpu_model,
+        "cpu": info.cpu_count,
+        "mem": info.memory_total,
+        "interfaces": info.interfaces or [],
+        "hostname": info.hostname,
+    }
+    _write_log(switch_id, snapshot)
+
+    switch.cached_info = json.dumps(snapshot, ensure_ascii=False)
+    switch.cached_at = now
+    switch.is_online = True
+    db.commit()
+
+    return SwitchDetailResponse(
+        id=switch.id,
+        name=switch.name,
+        ip=switch.ip,
+        port=switch.port,
+        username=switch.username,
+        password=switch.password,
+        description=switch.description,
+        tags=switch.tags,
+        is_online=True,
+        os_type=info.os_type,
+        os_version=info.os_version,
+        hostname=info.hostname,
+        cpu=info.cpu_count,
+        cpu_model=info.cpu_model,
+        mem=info.memory_total,
+        interfaces=info.interfaces or [],
+        cached_at=switch.cached_at,
+        created_at=switch.created_at,
+        updated_at=switch.updated_at,
+    )
+
+
+@router.get("/{switch_id}/status", response_model=SwitchStatusResponse)
+def check_switch_status(switch_id: int, db: Session = Depends(get_db)):
+    switch = db.query(Switch).filter(Switch.id == switch_id).first()
+    if not switch:
+        raise HTTPException(status_code=404, detail="Switch not found")
+
+    online = check_online(switch.ip, port=switch.port)
+    was_online = switch.is_online
+    switch.is_online = online
+    switch.online_checked_at = datetime.utcnow()
+    db.commit()
+
+    _write_log(switch_id, {
+        "type": "status_check",
+        "online": online,
+        "changed": was_online != online,
+    })
+
+    return SwitchStatusResponse(
+        name=switch.name,
+        ip=switch.ip,
+        online=online,
+        ssh_open=online,
+        message=None if online else "Switch is unreachable",
+    )
+
+
+# ── Assoc ────────────────────────────────────────────────────────────────────────
+
 @router.get("/{switch_id}/servers")
 def get_switch_servers(switch_id: int, db: Session = Depends(get_db)):
-    """获取关联到此交换机的所有服务器 ID 列表"""
     switch = db.query(Switch).filter(Switch.id == switch_id).first()
     if not switch:
         raise HTTPException(status_code=404, detail="Switch not found")
@@ -84,11 +190,9 @@ def get_switch_servers(switch_id: int, db: Session = Depends(get_db)):
 
 @router.post("/server/{server_id}/switches", status_code=204)
 def set_server_switches(server_id: int, data: ServerSwitchAssocRequest, db: Session = Depends(get_db)):
-    """设置服务器关联的交换机列表"""
     server = db.query(Server).filter(Server.id == server_id).first()
     if not server:
         raise HTTPException(status_code=404, detail="Server not found")
-
     switches = db.query(Switch).filter(Switch.id.in_(data.switch_ids)).all()
     server.switches = switches
     db.commit()
@@ -96,7 +200,6 @@ def set_server_switches(server_id: int, data: ServerSwitchAssocRequest, db: Sess
 
 @router.get("/server/{server_id}/switches", response_model=SwitchListResponse)
 def get_server_switches(server_id: int, db: Session = Depends(get_db)):
-    """获取服务器关联的所有交换机"""
     server = db.query(Server).filter(Server.id == server_id).first()
     if not server:
         raise HTTPException(status_code=404, detail="Server not found")

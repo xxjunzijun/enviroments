@@ -137,3 +137,36 @@ class SwitchListResponse(BaseModel):
 
 class ServerSwitchAssocRequest(BaseModel):
     switch_ids: list[int]
+
+
+class SwitchDetailResponse(BaseModel):
+    id: int
+    name: str
+    ip: str
+    port: int
+    username: str
+    password: Optional[str] = None
+    description: Optional[str] = None
+    tags: str
+    is_online: bool
+    os_type: Optional[str] = None
+    os_version: Optional[str] = None
+    hostname: Optional[str] = None
+    cpu: Optional[int] = None
+    cpu_model: Optional[str] = None
+    mem: Optional[int] = None
+    interfaces: Optional[list] = None
+    cached_at: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class SwitchStatusResponse(BaseModel):
+    name: str
+    ip: str
+    online: bool
+    ssh_open: bool
+    message: Optional[str] = None

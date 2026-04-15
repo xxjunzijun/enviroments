@@ -49,10 +49,23 @@ export const switches = {
   delete: (id) => api.delete(`/switches/${id}`),
 
   getServers: (id) => api.get(`/switches/${id}/servers`).then(r => r.data),
+
+  getDetail: (id) => api.get(`/switches/${id}/detail`).then(r => r.data),
+
+  fetchDetail: (id) => api.get(`/switches/${id}/detail`).then(r => r.data),
+
+  checkStatus: (id) => api.get(`/switches/${id}/status`).then(r => r.data),
 }
 
 export const serverSwitchAssoc = {
   get: (serverId) => api.get(`/switches/server/${serverId}/switches`).then(r => r.data),
 
   set: (serverId, switchIds) => api.post(`/switches/server/${serverId}/switches`, { switch_ids: switchIds }),
+}
+
+export const switchLogs = {
+  list: (switchId, limit = 200, offset = 0) =>
+    api.get(`/switches/${switchId}/logs`, { params: { limit, offset } }).then(r => r.data),
+
+  clear: (switchId) => api.delete(`/switches/${switchId}/logs/clear`),
 }

@@ -100,28 +100,8 @@
       </template>
     </el-dialog>
 
-    <!-- Detail Dialog -->
-    <el-dialog v-model="showDetailDialog" :title="detailSwitch?.name || '交换机详情'" width="560px">
-      <el-descriptions :column="2" border v-if="detailSwitch">
-        <el-descriptions-item label="名称">{{ detailSwitch.name }}</el-descriptions-item>
-        <el-descriptions-item label="IP">{{ detailSwitch.ip }}</el-descriptions-item>
-        <el-descriptions-item label="端口">{{ detailSwitch.port }}</el-descriptions-item>
-        <el-descriptions-item label="用户名">{{ detailSwitch.username }}</el-descriptions-item>
-        <el-descriptions-item label="密码" span="2">{{ detailSwitch.password ? '••••••' : '—' }}</el-descriptions-item>
-        <el-descriptions-item label="标签" span="2">{{ detailSwitch.tags || '—' }}</el-descriptions-item>
-        <el-descriptions-item label="备注" span="2">{{ detailSwitch.description || '—' }}</el-descriptions-item>
-        <el-descriptions-item label="创建时间">{{ detailSwitch.created_at }}</el-descriptions-item>
-        <el-descriptions-item label="更新时间">{{ detailSwitch.updated_at }}</el-descriptions-item>
-      </el-descriptions>
-      <div v-if="assocServers.length > 0" style="margin-top: 16px">
-        <b>关联服务器</b>
-        <el-tag v-for="s in assocServers" :key="s.id" style="margin: 4px 4px 0 0">{{ s.ip }}</el-tag>
-      </div>
-      <template #footer>
-        <el-button @click="showDetailDialog = false">关闭</el-button>
-        <el-button type="primary" @click="openEditFromDetail">编辑</el-button>
-      </template>
-    </el-dialog>
+    <!-- Detail Drawer -->
+    <SwitchDetail :switchId="activeSwitchId" @close="activeSwitchId = null" @switch-updated="load" @open-edit="openEditById" />
 
     <!-- Assoc Dialog -->
     <el-dialog v-model="showAssocDialog" :title="`关联服务器 — ${assocTargetSwitch?.name}`" width="480px">
@@ -143,13 +123,13 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Search } from '@element-plus/icons-vue'
 import { switches, serverSwitchAssoc } from '../api/index.js'
 import { servers } from '../api/index.js'
+import SwitchDetail from '../components/SwitchDetail.vue'
 
 // ── State ────────────────────────────────────────────────────────────────────
 const loading = ref(false)
 const switches_data = ref([])
 const searchQuery = ref('')
 const showAddDialog = ref(false)
-const showDetailDialog = ref(false)
 const showAssocDialog = ref(false)
 const editingSwitch = ref(null)
 const saving = ref(false)
@@ -157,9 +137,7 @@ const savingAssoc = ref(false)
 const assocTargetSwitch = ref(null)
 const selectedServerIds = ref([])
 const allServers = ref([])
-const assocServers = ref([])
-
-const detailSwitch = ref(null)
+const activeSwitchId = ref(null)
 
 const form = ref({ name: '', ip: '', port: 22, username: '', password: '', tags: '', description: '' })
 
@@ -270,35 +248,22 @@ async function remove(row) {
   }
 }
 
-async function openDetail(row) {
-  detailSwitch.value = null
-  showDetailDialog.value = true
-  try {
-    detailSwitch.value = await switches.get(row.id)
-    // 加载关联服务器
-    try {
-      const data = await serverSwitchAssoc.get(row.id)
-      assocServers.value = data.switches || []
-    } catch {
-      assocServers.value = []
-    }
-  } catch (e) {
-    ElMessage.error('加载详情失败')
-  }
+function openDetail(row) {
+  activeSwitchId.value = row.id
 }
 
-function openEditFromDetail() {
-  if (!detailSwitch.value) return
-  showDetailDialog.value = false
-  editingSwitch.value = detailSwitch.value
+function openEditById(id) {
+  const row = switches_data.value.find(s => s.id === id)
+  if (!row) return
+  editingSwitch.value = row
   form.value = {
-    name: detailSwitch.value.name,
-    ip: detailSwitch.value.ip,
-    port: detailSwitch.value.port,
-    username: detailSwitch.value.username,
+    name: row.name,
+    ip: row.ip,
+    port: row.port,
+    username: row.username,
     password: '',
-    tags: detailSwitch.value.tags,
-    description: detailSwitch.value.description,
+    tags: row.tags || '',
+    description: row.description || '',
   }
   showAddDialog.value = true
 }

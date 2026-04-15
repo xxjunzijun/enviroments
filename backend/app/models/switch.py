@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Table
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Table, Boolean
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.core.database import Base
@@ -16,10 +16,14 @@ class Switch(Base):
     description = Column(Text, nullable=True)
     tags = Column(String(500), default="")
 
+    cached_info = Column(Text, nullable=True)          # JSON: latest full info snapshot
+    cached_at = Column(DateTime, nullable=True)
+    is_online = Column(Boolean, default=False)
+    online_checked_at = Column(DateTime, nullable=True)
+
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    # 关联的服务器通过 association table 访问
     servers = relationship(
         "Server",
         secondary="server_switches",
@@ -28,7 +32,6 @@ class Switch(Base):
     )
 
 
-# 关联表：服务器 ↔ 交换机（多对多）
 server_switches = Table(
     "server_switches",
     Base.metadata,
