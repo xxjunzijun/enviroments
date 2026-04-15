@@ -311,8 +311,7 @@ class SwitchInfo:
     os_version: Optional[str] = None
     board_type: Optional[str] = None  # e.g. "S5560-28C-PWR-EI"
     uptime: Optional[str] = None
-    cpu: Optional[int] = None         # CPU usage %
-    mem: Optional[int] = None         # memory usage %
+    patch_version: Optional[str] = None
     error: Optional[str] = None
 
 
@@ -356,20 +355,14 @@ def _interact_exec(ssh_client, command: str, expect_prompt: str = ">", timeout: 
         try:
             chunk = chan.recv(65535).decode('utf-8', errors='replace')
             output += chunk
-            # Loop until we're back at a prompt line
-            lines = output.split('\r\n')
-            for line in reversed(lines):
-                stripped = line.strip()
-                # Check if last non-empty line looks like a prompt
-                if stripped and not stripped.startswith(command):
-                    # Check prompt patterns: ends with '>' or '#' or contains '>' at end
-                    if stripped.endswith('>') or stripped.endswith('#'):
-                        # Verify the prompt has appeared after our command
-                        cmd_pos = output.rfind(command)
-                        prompt_pos = output.rfind(stripped)
-                        if prompt_pos > cmd_pos:
-                            chan.close()
-                            return output
+            # Look at last line to check prompt
+            last_line = output.split('\n')[-1].strip()
+            if last_line and not last_line.startswith(command) and (last_line.endswith('>') or last_line.endswith('#')):
+                cmd_pos = output.rfind(command)
+                last_pos = output.rfind(last_line)
+                if last_pos > cmd_pos:
+                    chan.close()
+                    return output
         except Exception:
             break
 
@@ -380,57 +373,84 @@ def _interact_exec(ssh_client, command: str, expect_prompt: str = ">", timeout: 
 def _parse_display_version(raw: str) -> dict:
     """
     Parse 'display version' output from H3C / Huawei / Cisco CLI.
-    Extracts: hostname, os_type, os_version, board_type, uptime.
+    Extracts: hostname, os_type, os_version, board_type, uptime, patch_version.
     Vendor is auto-detected by keywords in the output.
     """
-    lines = raw.split('\r\n')
+    import re
+    lines = raw.split('\n')
     result = {
         "hostname": None,
         "os_type": None,
         "os_version": None,
         "board_type": None,
         "uptime": None,
+        "patch_version": None,
     }
 
-    for line in lines:
-        line = line.strip()
-        if not line or line.startswith('---') or line.startswith('display version'):
-            continue
+    # Strip control chars from each line
+    clean_lines = [re.sub(r'[\r\x00-\x1f]', '', l).strip() for l in lines]
+    full_text = ' '.join(clean_lines)
 
-        # H3C Comware
-        if any(k in line for k in ('H3C', 'Comware', 'S-series', 'S5560', 'S5500', 'S5120')):
-            result["os_type"] = "H3C Comware"
-            # e.g. "H3C S5560-28C-PWR-EI"
-            parts = line.split()
-            if parts:
-                result["hostname"] = parts[0] if not line.startswith('H3C') else line.split()[1] if len(line.split()) > 1 else None
-                # Board type: find part with model number
-                for p in line.split():
-                    if '-' in p and any(c.isdigit() for c in p):
-                        result["board_type"] = p
-                        break
+    # ── Huawei VRP ───────────────────────────────────────────────────────────
+    if 'VRP (R) software' in full_text or 'Huawei Versatile Routing Platform' in full_text:
+        result["os_type"] = "Huawei VRP"
 
-        # Huawei VRP
-        elif any(k in line for k in ('Huawei', 'VRP', 'Quidway', 'S5700', 'S3700', 'S2700', 'S9700')):
-            result["os_type"] = "Huawei VRP"
-            if not result["hostname"]:
-                parts = line.split()
-                for i, p in enumerate(parts):
-                    if p in ('Huawei', 'S5700', 'S3700', 'S2700', 'S9700', 'S6700'):
-                        result["board_type"] = p
-                        break
+        # "VRP (R) software, Version 8.150 (CE6860EI V200R002C50SPC800)"
+        version_match = re.search(r'Version\s+([\d.]+)\s*\(([^)]+)\)', full_text)
+        if version_match:
+            result["os_version"] = f"VRP {version_match.group(1)} ({version_match.group(2)})"
 
-        # Cisco IOS
-        elif any(k in line for k in ('Cisco', 'IOS', 'Version', 'cisco', 'uptime')):
-            result["os_type"] = "Cisco IOS"
+        # "Patch Version: V200R002SPH016" — use raw line, not full_text
+        for l in lines:
+            if 'Patch' in l and 'Version' in l:
+                pm = re.search(r'Patch\s+Version:\s*(.+)', l)
+                if pm:
+                    result["patch_version"] = pm.group(1).strip()
+                break
 
-        # Version line — e.g. "Version 7.1.045, Release 2415P02"
-        if 'Version' in line and ('Release' in line or 'Build' in line):
-            result["os_version"] = line
+        # "Board Type : CE6860-48S8CQ-EI" — use raw line
+        for l in lines:
+            if re.search(r'Board\s+Type', l, re.IGNORECASE):
+                bm = re.search(r'Board\s+Type\s*:\s*(.+)', l, re.IGNORECASE)
+                if bm:
+                    result["board_type"] = bm.group(1).strip()
+                break
 
-        # Uptime line
-        if 'uptime' in line.lower() or 'up' in line.lower():
-            result["uptime"] = line
+        # "HUAWEI CE6860-48S8CQ-EI uptime is 193 days, 1 hour, 45 minutes"
+        uptime_match = re.search(r'uptime\s+is\s+([^,\n]+(?:,\s*\d+\s*hours?)?(?:,\s*\d+\s*minutes?)?)', full_text, re.IGNORECASE)
+        if uptime_match:
+            result["uptime"] = uptime_match.group(1).strip()
+
+        # Hostname: from hostname line or uptime line
+        for l in lines:
+            if re.match(r'\S+\s*\(Master\)', l) or re.match(r'[A-Z][A-Z0-9]+-[A-Z0-9-]+\s*\(Master\)', l):
+                hm = re.search(r'([A-Z][A-Z0-9]+-[A-Z0-9-]+)', l)
+                if hm:
+                    result["hostname"] = hm.group(1).split('(')[0].strip()
+                break
+
+    # ── H3C Comware ─────────────────────────────────────────────────────────
+    elif any(k in full_text for k in ('H3C', 'Comware')):
+        result["os_type"] = "H3C Comware"
+        version_match = re.search(r'Comware\s+Software.*?Version\s+([\d.]+)', full_text, re.IGNORECASE)
+        if version_match:
+            result["os_version"] = f"Comware Version {version_match.group(1)}"
+        board_match = re.search(r'H3C\s+([A-Z][\w-]+)', full_text)
+        if board_match:
+            result["board_type"] = board_match.group(1)
+        uptime_match = re.search(r'uptime\s+is\s+([^,\n]+)', full_text, re.IGNORECASE)
+        if uptime_match:
+            result["uptime"] = uptime_match.group(1).strip()
+
+    # ── Cisco IOS ────────────────────────────────────────────────────────────
+    elif 'Cisco' in full_text:
+        result["os_type"] = "Cisco IOS"
+        version_match = re.search(r'Cisco\s+IOS.*?Version\s+([\d.]+)', full_text, re.IGNORECASE)
+        if version_match:
+            result["os_version"] = f"IOS Version {version_match.group(1)}"
+        uptime_match = re.search(r'uptime\s+is\s+([^,\n]+)', full_text, re.IGNORECASE)
+        if uptime_match:
+            result["uptime"] = uptime_match.group(1).strip()
 
     return result
 
@@ -472,6 +492,7 @@ def get_switch_info_via_ssh(
             os_version=parsed.get("os_version"),
             board_type=parsed.get("board_type"),
             uptime=parsed.get("uptime"),
+            patch_version=parsed.get("patch_version"),
         )
 
     except Exception as e:

@@ -164,6 +164,7 @@ class SwitchDetailResponse(BaseModel):
     hostname: Optional[str] = None
     board_type: Optional[str] = None   # e.g. "S5560-28C-PWR-EI"
     uptime: Optional[str] = None
+    patch_version: Optional[str] = None
     cpu: Optional[int] = None          # CPU usage %
     mem: Optional[int] = None          # Memory usage %
     interfaces: Optional[list] = None

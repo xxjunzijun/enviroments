@@ -119,8 +119,7 @@ def fetch_switch_detail(switch_id: int, db: Session = Depends(get_db)):
         "board_type": info.board_type,
         "hostname": info.hostname,
         "uptime": info.uptime,
-        "cpu": info.cpu,
-        "mem": info.mem,
+        "patch_version": info.patch_version,
         "interfaces": [],
     }
     _write_log(switch_id, snapshot)
@@ -145,6 +144,7 @@ def fetch_switch_detail(switch_id: int, db: Session = Depends(get_db)):
         hostname=info.hostname,
         board_type=info.board_type,
         uptime=info.uptime,
+        patch_version=info.patch_version,
         cpu=info.cpu,
         mem=info.mem,
         interfaces=[],

@@ -13,6 +13,7 @@
             <el-descriptions-item label="用户名">{{ detail.username }}</el-descriptions-item>
             <el-descriptions-item label="系统类型">{{ detail.os_type || '—' }}</el-descriptions-item>
             <el-descriptions-item label="系统版本">{{ detail.os_version || '—' }}</el-descriptions-item>
+            <el-descriptions-item label="补丁版本">{{ detail.patch_version || '—' }}</el-descriptions-item>
             <el-descriptions-item label="设备型号">{{ detail.board_type || '—' }}</el-descriptions-item>
             <el-descriptions-item label="主机名">{{ detail.hostname || '—' }}</el-descriptions-item>
             <el-descriptions-item label="运行时间">{{ detail.uptime || '—' }}</el-descriptions-item>
