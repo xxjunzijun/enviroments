@@ -13,9 +13,11 @@
             <el-descriptions-item label="用户名">{{ detail.username }}</el-descriptions-item>
             <el-descriptions-item label="系统类型">{{ detail.os_type || '—' }}</el-descriptions-item>
             <el-descriptions-item label="系统版本">{{ detail.os_version || '—' }}</el-descriptions-item>
+            <el-descriptions-item label="设备型号">{{ detail.board_type || '—' }}</el-descriptions-item>
             <el-descriptions-item label="主机名">{{ detail.hostname || '—' }}</el-descriptions-item>
-            <el-descriptions-item label="CPU">{{ detail.cpu ? detail.cpu + ' 核' : '—' }}{{ detail.cpu_model ? ' / ' + detail.cpu_model : '' }}</el-descriptions-item>
-            <el-descriptions-item label="内存">{{ detail.mem ? detail.mem + ' MB' : '—' }}</el-descriptions-item>
+            <el-descriptions-item label="运行时间">{{ detail.uptime || '—' }}</el-descriptions-item>
+            <el-descriptions-item label="CPU 使用率">{{ detail.cpu != null ? detail.cpu + '%' : '—' }}</el-descriptions-item>
+            <el-descriptions-item label="内存使用率">{{ detail.mem != null ? detail.mem + '%' : '—' }}</el-descriptions-item>
             <el-descriptions-item label="标签">{{ detail.tags || '—' }}</el-descriptions-item>
             <el-descriptions-item label="备注">{{ detail.description || '—' }}</el-descriptions-item>
             <el-descriptions-item label="关联服务器">
@@ -85,6 +87,7 @@ import { ref, computed, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh } from '@element-plus/icons-vue'
 import { switches as switchApi } from '../api/index.js'
+import { serverSwitchAssoc } from '../api/index.js'
 import { switchLogs } from '../api/index.js'
 
 const props = defineProps({ switchId: { type: Number, default: null } })
@@ -127,6 +130,12 @@ watch(() => props.switchId, async (id) => {
     detail.value = data
     switchName.value = data.name
     detailCache.set(id, { detail: data, timestamp: Date.now() })
+    // 加载关联服务器
+    try {
+      assocServers.value = await switchApi.getServers(id)
+    } catch {
+      assocServers.value = []
+    }
   } catch {
     if (!cached) ElMessage.error('加载详情失败')
   } finally {

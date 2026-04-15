@@ -93,6 +93,9 @@ export const switches = {
 
   setServers: (switchId, serverIds) =>
     api.post(`/switches/${switchId}/servers`, { server_ids: serverIds }),
+
+  getServers: (switchId) =>
+    api.get(`/switches/${switchId}/servers`).then(r => r.data),
 }
 
 export const serverSwitchAssoc = {

@@ -159,12 +159,13 @@ class SwitchDetailResponse(BaseModel):
     description: Optional[str] = None
     tags: str
     is_online: bool
-    os_type: Optional[str] = None
+    os_type: Optional[str] = None     # e.g. "H3C Comware", "Huawei VRP"
     os_version: Optional[str] = None
     hostname: Optional[str] = None
-    cpu: Optional[int] = None
-    cpu_model: Optional[str] = None
-    mem: Optional[int] = None
+    board_type: Optional[str] = None   # e.g. "S5560-28C-PWR-EI"
+    uptime: Optional[str] = None
+    cpu: Optional[int] = None          # CPU usage %
+    mem: Optional[int] = None          # Memory usage %
     interfaces: Optional[list] = None
     cached_at: Optional[datetime] = None
     created_at: datetime

@@ -299,3 +299,169 @@ def get_server_info_via_ssh(
 
     finally:
         client.close()
+
+
+# ─── Switch info (proprietary CLI) ───────────────────────────────────────────
+
+@dataclass
+class SwitchInfo:
+    """Switch information dataclass."""
+    hostname: Optional[str] = None
+    os_type: Optional[str] = None    # e.g. "H3C", "Huawei VRP", "Cisco IOS"
+    os_version: Optional[str] = None
+    board_type: Optional[str] = None  # e.g. "S5560-28C-PWR-EI"
+    uptime: Optional[str] = None
+    cpu: Optional[int] = None         # CPU usage %
+    mem: Optional[int] = None         # memory usage %
+    error: Optional[str] = None
+
+
+def _interact_exec(ssh_client, command: str, expect_prompt: str = ">", timeout: int = 10) -> str:
+    """
+    Execute a command via an interactive shell session (paramiko invoke_shell).
+    Waits for the command prompt to return, then returns the output.
+    Suitable for network device CLIs (Huawei VRP, H3C Comware, etc.).
+    """
+    output = ""
+    chan = ssh_client.invoke_shell(width=200, height=80)
+    chan.settimeout(timeout)
+
+    # Drain any initial output (login banner, prompts)
+    try:
+        while chan.recv_ready():
+            output += chan.recv(65535).decode('utf-8', errors='replace')
+    except Exception:
+        pass
+
+    # Send the command
+    chan.send(command + "\r\n")
+
+    # Read until we see the prompt again (command finished)
+    while True:
+        try:
+            chunk = chan.recv(65535).decode('utf-8', errors='replace')
+            output += chunk
+            # Loop until we're back at a prompt line
+            lines = output.split('\r\n')
+            for line in reversed(lines):
+                stripped = line.strip()
+                # Check if last non-empty line looks like a prompt
+                if stripped and not stripped.startswith(command):
+                    # Check prompt patterns: ends with '>' or '#' or contains '>' at end
+                    if stripped.endswith('>') or stripped.endswith('#'):
+                        # Verify the prompt has appeared after our command
+                        cmd_pos = output.rfind(command)
+                        prompt_pos = output.rfind(stripped)
+                        if prompt_pos > cmd_pos:
+                            chan.close()
+                            return output
+        except Exception:
+            break
+
+    chan.close()
+    return output
+
+
+def _parse_display_version(raw: str) -> dict:
+    """
+    Parse 'display version' output from H3C / Huawei / Cisco CLI.
+    Extracts: hostname, os_type, os_version, board_type, uptime.
+    Vendor is auto-detected by keywords in the output.
+    """
+    lines = raw.split('\r\n')
+    result = {
+        "hostname": None,
+        "os_type": None,
+        "os_version": None,
+        "board_type": None,
+        "uptime": None,
+    }
+
+    for line in lines:
+        line = line.strip()
+        if not line or line.startswith('---') or line.startswith('display version'):
+            continue
+
+        # H3C Comware
+        if any(k in line for k in ('H3C', 'Comware', 'S-series', 'S5560', 'S5500', 'S5120')):
+            result["os_type"] = "H3C Comware"
+            # e.g. "H3C S5560-28C-PWR-EI"
+            parts = line.split()
+            if parts:
+                result["hostname"] = parts[0] if not line.startswith('H3C') else line.split()[1] if len(line.split()) > 1 else None
+                # Board type: find part with model number
+                for p in line.split():
+                    if '-' in p and any(c.isdigit() for c in p):
+                        result["board_type"] = p
+                        break
+
+        # Huawei VRP
+        elif any(k in line for k in ('Huawei', 'VRP', 'Quidway', 'S5700', 'S3700', 'S2700', 'S9700')):
+            result["os_type"] = "Huawei VRP"
+            if not result["hostname"]:
+                parts = line.split()
+                for i, p in enumerate(parts):
+                    if p in ('Huawei', 'S5700', 'S3700', 'S2700', 'S9700', 'S6700'):
+                        result["board_type"] = p
+                        break
+
+        # Cisco IOS
+        elif any(k in line for k in ('Cisco', 'IOS', 'Version', 'cisco', 'uptime')):
+            result["os_type"] = "Cisco IOS"
+
+        # Version line — e.g. "Version 7.1.045, Release 2415P02"
+        if 'Version' in line and ('Release' in line or 'Build' in line):
+            result["os_version"] = line
+
+        # Uptime line
+        if 'uptime' in line.lower() or 'up' in line.lower():
+            result["uptime"] = line
+
+    return result
+
+
+def get_switch_info_via_ssh(
+    ip: str,
+    username: str,
+    password: Optional[str] = None,
+    port: int = 22,
+) -> SwitchInfo:
+    """
+    Connect to a network switch via SSH (interactive CLI session) and fetch
+    device info using 'display version'.
+    Supports: H3C Comware, Huawei VRP, Cisco IOS (auto-detected).
+    """
+    import paramiko
+    import re
+
+    client = paramiko.SSHClient()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+    try:
+        client.connect(
+            ip,
+            port=port,
+            username=username,
+            password=password,
+            timeout=10,
+            look_for_keys=False,
+            allow_agent=False,
+        )
+
+        output = _interact_exec(client, "display version")
+        parsed = _parse_display_version(output)
+
+        return SwitchInfo(
+            hostname=parsed.get("hostname"),
+            os_type=parsed.get("os_type", "unknown"),
+            os_version=parsed.get("os_version"),
+            board_type=parsed.get("board_type"),
+            uptime=parsed.get("uptime"),
+        )
+
+    except Exception as e:
+        return SwitchInfo(error=str(e))
+
+    finally:
+        client.close()
+

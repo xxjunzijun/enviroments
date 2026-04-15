@@ -12,7 +12,7 @@ from app.api.v1.schemas import (
     SwitchListResponse, ServerSwitchAssocRequest, ServerIdsRequest,
     SwitchDetailResponse, SwitchStatusResponse,
 )
-from infrastructure.ssh_client import get_server_info_via_ssh, check_online, ServerInfo
+from infrastructure.ssh_client import get_switch_info_via_ssh, check_online, SwitchInfo
 from app.core.scheduler import LOG_DIR as _LOG_DIR
 
 router = APIRouter(prefix="/switches", tags=["switches"], dependencies=[Depends(get_current_user)])
@@ -95,7 +95,7 @@ def fetch_switch_detail(switch_id: int, db: Session = Depends(get_db)):
     if not switch:
         raise HTTPException(status_code=404, detail="Switch not found")
 
-    info: ServerInfo = get_server_info_via_ssh(
+    info: SwitchInfo = get_switch_info_via_ssh(
         ip=switch.ip,
         username=switch.username,
         password=switch.password,
@@ -116,11 +116,12 @@ def fetch_switch_detail(switch_id: int, db: Session = Depends(get_db)):
         "online": True,
         "os_type": info.os_type,
         "os_version": info.os_version,
-        "cpu_model": info.cpu_model,
-        "cpu": info.cpu_count,
-        "mem": info.memory_total,
-        "interfaces": info.interfaces or [],
+        "board_type": info.board_type,
         "hostname": info.hostname,
+        "uptime": info.uptime,
+        "cpu": info.cpu,
+        "mem": info.mem,
+        "interfaces": [],
     }
     _write_log(switch_id, snapshot)
 
@@ -142,10 +143,11 @@ def fetch_switch_detail(switch_id: int, db: Session = Depends(get_db)):
         os_type=info.os_type,
         os_version=info.os_version,
         hostname=info.hostname,
-        cpu=info.cpu_count,
-        cpu_model=info.cpu_model,
-        mem=info.memory_total,
-        interfaces=info.interfaces or [],
+        board_type=info.board_type,
+        uptime=info.uptime,
+        cpu=info.cpu,
+        mem=info.mem,
+        interfaces=[],
         cached_at=switch.cached_at,
         created_at=switch.created_at,
         updated_at=switch.updated_at,
@@ -183,10 +185,14 @@ def check_switch_status(switch_id: int, db: Session = Depends(get_db)):
 
 @router.get("/{switch_id}/servers")
 def get_switch_servers(switch_id: int, db: Session = Depends(get_db)):
+    """获取关联到此交换机的服务器列表（返回基本信息）"""
     switch = db.query(Switch).filter(Switch.id == switch_id).first()
     if not switch:
         raise HTTPException(status_code=404, detail="Switch not found")
-    return [s.id for s in switch.servers]
+    return [
+        {"id": s.id, "ip": s.ip, "hostname": s.cached_hostname, "os_type": s.os_type}
+        for s in switch.servers
+    ]
 
 
 @router.post("/server/{server_id}/switches", status_code=204)
