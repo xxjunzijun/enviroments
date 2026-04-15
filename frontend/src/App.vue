@@ -34,6 +34,8 @@ body {
   background: #f5f7fa;
 }
 
+.layout { min-height: 100vh; }
+
 .header {
   background: #1a1a2e;
   color: #eaeaea;
@@ -46,13 +48,28 @@ body {
 
 .header h2 { font-size: 20px; font-weight: 600; white-space: nowrap; }
 
-.main-tabs { flex: 1; }
-.main-tabs :deep(.el-tabs__header) { margin: 0; }
-.main-tabs :deep(.el-tabs__nav-wrap::after) { display: none; }
-.main-tabs :deep(.el-tabs__item) { color: #aaa; font-size: 15px; height: 60px; line-height: 60px; padding: 0 16px; }
-.main-tabs :deep(.el-tabs__item.is-active) { color: #fff; font-weight: 500; }
-.main-tabs :deep(.el-tabs__active-bar) { background-color: #409eff; height: 3px; }
-.main-tabs :deep(.el-tabs__nav) { height: 60px; }
+.el-tabs.main-tabs {
+  flex: 1;
+  --el-color-primary: #409eff;
+}
+.el-tabs.main-tabs .el-tabs__header { margin: 0; }
+.el-tabs.main-tabs .el-tabs__nav-wrap::after { display: none; }
+.el-tabs.main-tabs .el-tabs__item {
+  color: #8b8b9e !important;
+  font-size: 15px;
+  height: 60px;
+  line-height: 60px;
+  padding: 0 16px;
+}
+.el-tabs.main-tabs :deep(.el-tabs__item.is-active) {
+  color: #ffffff !important;
+  font-weight: 500;
+}
+.el-tabs.main-tabs .el-tabs__active-bar {
+  background-color: #409eff;
+  height: 3px;
+}
+.el-tabs.main-tabs .el-tabs__nav { height: 60px; }
 
 .el-main { padding: 24px; }
 </style>

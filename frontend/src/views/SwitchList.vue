@@ -288,7 +288,7 @@ async function saveAssoc() {
   savingAssoc.value = true
   try {
     await serverSwitchAssoc.set(assocTargetSwitch.value.id, selectedServerIds.value)
-    // 更新列表中显示的关联数量
+    // 更新列表中显示的关联数量（后端返回正确计数）
     const idx = switches_data.value.findIndex(s => s.id === assocTargetSwitch.value.id)
     if (idx !== -1) {
       switches_data.value[idx] = { ...switches_data.value[idx], assoc_server_count: selectedServerIds.value.length }

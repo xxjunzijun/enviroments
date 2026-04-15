@@ -203,4 +203,5 @@ def _to_response(server: Server) -> ServerResponse:
         updated_at=server.updated_at,
         cached_os_version=cached_os_version,
         cached_cpu_model=cached_cpu_model,
+        assoc_switch_count=len(server.switches) if server.switches else 0,
     )

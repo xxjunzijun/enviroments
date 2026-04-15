@@ -221,4 +221,5 @@ def _to_response(switch: Switch) -> SwitchResponse:
         tags=switch.tags,
         created_at=switch.created_at,
         updated_at=switch.updated_at,
+        assoc_server_count=len(switch.servers) if switch.servers else 0,
     )

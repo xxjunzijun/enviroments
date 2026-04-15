@@ -56,6 +56,7 @@ class ServerResponse(BaseModel):
     updated_at: datetime
     cached_os_version: Optional[str] = None  # extracted from cached_info
     cached_cpu_model: Optional[str] = None   # extracted from cached_info
+    assoc_switch_count: Optional[int] = None
 
     class Config:
         from_attributes = True
@@ -125,6 +126,7 @@ class SwitchResponse(BaseModel):
     tags: str
     created_at: datetime
     updated_at: datetime
+    assoc_server_count: Optional[int] = None
 
     class Config:
         from_attributes = True
