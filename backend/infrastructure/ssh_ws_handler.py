@@ -15,6 +15,13 @@ from typing import Optional
 import paramiko
 from paramiko import AutoAddPolicy
 
+
+class _AllowAnyHostKeyPolicy(paramiko.client.MissingHostKeyPolicy):
+    """Accept any host key — for trusted private network servers only."""
+    def missing_host_key(self, client, hostname, key):
+        # Accept any key without verification
+        pass
+
 # Suppress paramiko deprecation warnings
 warnings.filterwarnings("ignore", message="TripleDES has been moved")
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="paramiko")
@@ -52,25 +59,35 @@ class SSHChannelSession:
         self.ws_queue: queue.Queue = queue.Queue()
         self.running = False
 
-    def _read_from_channel(self, data_cb):
-        """Background thread: read from SSH channel, send to WebSocket via queue."""
+    def _read_from_channel(self):
+        """Background thread: read from SSH channel using blocking recv with timeout."""
         import time
+        print(f"[SSH reader] thread started, channel={self.channel}", flush=True)
+        recv_count = 0
         while self.running:
             if self.channel is None:
+                print(f"[SSH reader] channel is None, exiting", flush=True)
                 break
             try:
-                if self.channel.recv_ready():
-                    data = self.channel.recv(65535)
-                    if data:
-                        self.ws_queue.put(("data", data.decode("utf-8", errors="replace")))
+                data = self.channel.recv(65535)
+                if data:
+                    recv_count += 1
+                    print(f"[SSH reader] recv #{recv_count}, len={len(data)}", flush=True)
+                    self.ws_queue.put(("data", data.decode("utf-8", errors="replace")))
+            except Exception as e:
+                etype = type(e).__name__
+                if "timeout" in etype.lower() or "timeout" in str(e).lower():
+                    # Normal timeout — keep waiting
+                    pass
                 else:
-                    time.sleep(0.01)
-            except Exception:
-                break
+                    print(f"[SSH reader] exception: {etype}: {e}", flush=True)
+                    break
+                continue
 
-        # Channel closed
+        print(f"[SSH reader] loop exited (recv_count={recv_count})", flush=True)
+        self.running = False
         try:
-            self.ws_queue.put(("close", b""))
+            self.ws_queue.put(("close", ""))
         except Exception:
             pass
 
@@ -79,7 +96,9 @@ class SSHChannelSession:
         import time
 
         self.ssh_client = paramiko.SSHClient()
-        self.ssh_client.set_missing_host_key_policy(AutoAddPolicy())
+        # Use empty host keys to skip known_hosts verification (private network only)
+        self.ssh_client.get_host_keys().clear()
+        self.ssh_client.set_missing_host_key_policy(_AllowAnyHostKeyPolicy())
 
         try:
             self.ssh_client.connect(
@@ -100,41 +119,45 @@ class SSHChannelSession:
 
         # Handle password change prompt for Linux servers
         self.channel = self.ssh_client.invoke_shell(width=200, height=80)
-        self.channel.settimeout(0.05)
-        self.channel.setblocking(False)
+        self.channel.settimeout(1.0)  # 1s timeout, non-blocking recv
+        print(f"[SSH reader] invoke_shell done, channel={self.channel}", flush=True)
 
-        # Drain initial banner output
+        # Drain initial banner output and send to WebSocket via queue
         time.sleep(0.5)
-        try:
-            while self.channel.recv_ready():
-                self.channel.recv(65535)
-        except Exception:
-            pass
+        all_data = b''
+        drain_count = 0
+        while True:
+            try:
+                d = self.channel.recv(65535)
+                if d:
+                    all_data += d
+                    drain_count += 1
+                    print(f"[SSH reader] drain recv #{drain_count} {len(d)} bytes", flush=True)
+                else:
+                    break
+            except Exception as e:
+                if "timeout" in type(e).__name__.lower() or "timeout" in str(e).lower():
+                    break
+                else:
+                    print(f"[SSH reader] drain exception: {e}", flush=True)
+                    break
+        print(f"[SSH reader] total drained: {len(all_data)} bytes", flush=True)
+        if all_data:
+            self.ws_queue.put(("data", all_data.decode("utf-8", errors="replace")))
 
-        # Check if password change is prompted (some Linux SSH servers do this)
+        # Send newline to trigger fresh shell prompt
         try:
             self.channel.send("\r\n")
-            time.sleep(0.3)
-            if self.channel.recv_ready():
-                banner = self.channel.recv(65535).decode("utf-8", errors="replace")
-                if "Change now" in banner or "[Y/N]" in banner:
-                    self.channel.send("N\r\n")
-                    time.sleep(0.3)
-                    try:
-                        while self.channel.recv_ready():
-                            self.channel.recv(65535)
-                    except Exception:
-                        pass
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[SSH reader] send newline failed: {e}", flush=True)
 
+        # Start reader thread, then notify connected
         self.running = True
-
-        # Start reader thread
         reader = threading.Thread(target=self._read_from_channel, daemon=True)
         reader.start()
+        time.sleep(0.2)  # Let reader stabilize before any channel I/O
 
-        # Notify connected
+        print(f"[SSH reader] _connect done, connected", flush=True)
         self.ws_queue.put(("connected", ""))
 
     def start(self):
@@ -143,11 +166,15 @@ class SSHChannelSession:
 
     def write(self, data: str):
         """Write data to SSH channel (from WebSocket -> SSH)."""
+        print(f"[SSH write] called with: {repr(data)}", flush=True)
         if self.channel and self.running:
             try:
-                self.channel.send(data)
-            except Exception:
-                pass
+                sent = self.channel.send(data)
+                print(f"[SSH write] sent {sent} bytes", flush=True)
+            except Exception as e:
+                print(f"[SSH write] error: {e}", flush=True)
+        else:
+            print(f"[SSH write] skipped: channel={self.channel}, running={self.running}", flush=True)
 
     def resize(self, width: int, height: int):
         """Resize terminal window."""

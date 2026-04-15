@@ -79,10 +79,15 @@ async def websocket_ssh(
     WebSocket SSH terminal endpoint.
     Connects to a managed server or switch via SSH interactive shell.
     """
+    import sys
+    print(f"[WS SSH] incoming connection: target_type={target_type}, target_id={target_id}", flush=True)
+
     # 1. Validate JWT
     await websocket.accept()
     user_id = decode_token(token)
+    print(f"[WS SSH] token decoded: user_id={user_id}", flush=True)
     if user_id is None:
+        print("[WS SSH] auth failed: invalid token", flush=True)
         await websocket.send_json({"type": "error", "data": "Unauthorized"})
         await websocket.close()
         return
@@ -92,62 +97,109 @@ async def websocket_ssh(
     try:
         if target_type == "server":
             target = db.query(Server).filter(Server.id == target_id).first()
+            print(f"[WS SSH] server query result: {target}", flush=True)
             if not target:
+                print(f"[WS SSH] server {target_id} not found", flush=True)
                 await websocket.send_json({"type": "error", "data": "Server not found"})
                 await websocket.close()
                 return
             host = target.ip
-            port = target.port or 22
-            username = target.username
-            password = target.password
+            ssh_port = target.port or 22
+            username = target.ssh_username
+            password = target.ssh_password
         elif target_type == "switch":
             target = db.query(Switch).filter(Switch.id == target_id).first()
+            print(f"[WS SSH] switch query result: {target}", flush=True)
             if not target:
+                print(f"[WS SSH] switch {target_id} not found", flush=True)
                 await websocket.send_json({"type": "error", "data": "Switch not found"})
                 await websocket.close()
                 return
             host = target.ip
-            port = target.port or 22
+            ssh_port = target.port or 22
             username = target.username
             password = target.password
         else:
+            print(f"[WS SSH] invalid target_type: {target_type}", flush=True)
             await websocket.send_json({"type": "error", "data": "Invalid target_type"})
             await websocket.close()
             return
+        print(f"[WS SSH] connecting SSH: host={host}, port={ssh_port}, username={username}", flush=True)
     finally:
         db.close()
 
     # 3. Create SSH session
     session_id, session = create_session(
         host=host,
-        port=port,
+        port=ssh_port,
         username=username,
         password=password,
     )
+    print(f"[WS SSH] session created: {session_id}", flush=True)
 
     try:
         # 4. Drain SSH -> WebSocket events in a task
+        # Non-blocking send strategy: schedule sends as asyncio tasks WITHOUT awaiting.
+        # The key insight: we use create_task() to schedule each send as an
+        # independent task. The pump loop never blocks on a send, so receive_text
+        # always gets CPU time to process incoming user input.
+        # Deadlock scenario solved: even if send_json blocks, the pump loop
+        # continues processing -> receive_text runs -> user input reaches SSH.
+
         async def pump_ssh_to_ws():
             """Pump messages from SSH session queue -> WebSocket."""
             ws_queue = session.get_queue()
+            print(f"[WS SSH] pump started for session {session_id}", flush=True)
+
+            async def do_send_json(payload: dict):
+                """Send JSON without blocking the pump loop."""
+                try:
+                    await asyncio.wait_for(websocket.send_json(payload), timeout=2.0)
+                except asyncio.TimeoutError:
+                    print(f"[WS SSH] send timeout for {payload.get('type')}", flush=True)
+                except Exception as e:
+                    print(f"[WS SSH] send error [{payload.get('type')}]: {e}", flush=True)
+
+            # Wait for connected signal first
+            try:
+                msg_type, data = ws_queue.get(timeout=15)
+                print(f"[WS SSH] pump got msg: type={msg_type}, data={repr(data[:50]) if data else ''}", flush=True)
+                if msg_type == "error":
+                    asyncio.create_task(do_send_json({"type": "error", "data": data}))
+                    print(f"[WS SSH] pump: got error, exiting", flush=True)
+                    return
+                elif msg_type == "connected":
+                    asyncio.create_task(do_send_json({"type": "connected"}))
+                elif msg_type == "close":
+                    print(f"[WS SSH] pump: got close before connected, exiting", flush=True)
+                    return
+            except queue.Empty:
+                print(f"[WS SSH] pump: timeout waiting for connected, exiting", flush=True)
+                return
+
+            # Normal message pump loop
             while True:
                 try:
                     msg_type, data = ws_queue.get(timeout=0.05)
+                    print(f"[WS SSH] pump got msg: type={msg_type}, data={repr(data[:50]) if data else ''}", flush=True)
                     if msg_type == "data":
-                        await websocket.send_json({"type": "data", "data": data})
+                        asyncio.create_task(do_send_json({"type": "data", "data": data}))
                     elif msg_type == "connected":
-                        await websocket.send_json({"type": "connected"})
+                        asyncio.create_task(do_send_json({"type": "connected"}))
                     elif msg_type == "error":
-                        await websocket.send_json({"type": "error", "data": data})
+                        print(f"[WS SSH] SSH error: {data}", flush=True)
+                        asyncio.create_task(do_send_json({"type": "error", "data": data}))
                     elif msg_type == "close":
                         break
                 except queue.Empty:
-                    # Check if session is still running
-                    if not hasattr(session, 'running') or not session.running:
+                    if not session.running:
+                        print(f"[WS SSH] pump: session.running=False, exiting", flush=True)
                         break
                     continue
-                except Exception:
+                except Exception as e:
+                    print(f"[WS SSH] pump exception: {e}", flush=True)
                     break
+            print(f"[WS SSH] pump exiting for session {session_id}", flush=True)
 
         pump_task = asyncio.create_task(pump_ssh_to_ws())
 
@@ -155,6 +207,7 @@ async def websocket_ssh(
         while True:
             try:
                 raw = await websocket.receive_text()
+                print(f"[WS SSH] received: {repr(raw[:100])}", flush=True)
                 try:
                     msg = json.loads(raw)
                 except json.JSONDecodeError:
@@ -172,13 +225,17 @@ async def websocket_ssh(
                 elif msg_type == "ping":
                     await websocket.send_json({"type": "pong"})
             except WebSocketDisconnect:
+                print(f"[WS SSH] WebSocket disconnected", flush=True)
                 break
-            except Exception:
+            except Exception as e:
+                print(f"[WS SSH] receive exception: {e}", flush=True)
                 break
 
     finally:
+        print(f"[WS SSH] cleanup: cancelling pump, closing session {session_id}", flush=True)
         pump_task.cancel()
         close_session(session_id)
+        print(f"[WS SSH] cleanup done", flush=True)
 
 
 if getattr(sys, 'frozen', False):

@@ -1,5 +1,13 @@
 <template>
-  <el-container class="layout">
+  <!-- Standalone SSH terminal (full-screen, hash routed) -->
+  <StandaloneSSH
+    v-if="sshRoute"
+    :target-id="sshRoute.id"
+    :target-type="sshRoute.type"
+    :target-label="sshRoute.label"
+  />
+  <!-- Normal app layout -->
+  <el-container v-else class="layout">
     <el-header class="header">
       <h2>🖥️ Enviroments</h2>
       <el-tabs v-model="activeTab" class="main-tabs" @tab-change="onTabChange">
@@ -28,13 +36,28 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
 import { ArrowDown } from '@element-plus/icons-vue'
 import ServerList from './views/ServerList.vue'
 import SwitchList from './views/SwitchList.vue'
+import StandaloneSSH from './views/StandaloneSSH.vue'
 
 const activeTab = ref('servers')
 const username = ref(localStorage.getItem('username') || '')
+const sshRoute = ref(null)
+
+function parseHash() {
+  const hash = window.location.hash
+  const match = hash.match(/^#\/ssh\/([a-z]+)\/(\d+)(?:\/(.+))?$/)
+  if (match) {
+    return {
+      type: match[1],
+      id: Number(match[2]),
+      label: decodeURIComponent(match[3] || `${match[1]} #${match[2]}`),
+    }
+  }
+  return null
+}
 
 function onTabChange(tab) {
   activeTab.value = tab
@@ -48,6 +71,10 @@ function handleCommand(cmd) {
     window.location.reload()
   }
 }
+
+// Init
+sshRoute.value = parseHash()
+window.addEventListener('hashchange', () => { sshRoute.value = parseHash() })
 </script>
 
 <style>

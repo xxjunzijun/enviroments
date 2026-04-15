@@ -115,14 +115,6 @@
       </template>
     </el-dialog>
 
-    <!-- Web SSH Terminal -->
-    <WebTerminal
-      v-model="showTerminal"
-      :target-id="terminalTarget.id"
-      :target-type="terminalTarget.type"
-      :target-label="terminalTarget.label"
-    />
-
   </div>
 </template>
 
@@ -133,7 +125,6 @@ import { Plus, Search } from '@element-plus/icons-vue'
 import { switches, serverSwitchAssoc } from '../api/index.js'
 import { servers } from '../api/index.js'
 import SwitchDetail from '../components/SwitchDetail.vue'
-import WebTerminal from '../components/WebTerminal.vue'
 
 // ── State ────────────────────────────────────────────────────────────────────
 const loading = ref(false)
@@ -148,8 +139,6 @@ const assocTargetSwitch = ref(null)
 const selectedServerIds = ref([])
 const allServers = ref([])
 const activeSwitchId = ref(null)
-const showTerminal = ref(false)
-const terminalTarget = ref({ id: null, type: 'switch', label: '' })
 
 const form = ref({ name: '', ip: '', port: 22, username: '', password: '', tags: '', description: '' })
 
@@ -265,8 +254,8 @@ function openDetail(row) {
 }
 
 function openTerminal(row) {
-  terminalTarget.value = { id: row.id, type: 'switch', label: row.name || row.ip }
-  showTerminal.value = true
+  const label = encodeURIComponent(row.name || row.ip)
+  window.open(`/#/ssh/switch/${row.id}/${label}`, '_blank')
 }
 
 function openEditById(id) {
