@@ -73,8 +73,8 @@
       </el-table-column>
       <el-table-column label="BMC IP" min-width="140">
         <template #default="{ row }">
-          <template v-if="editingBmcId === row.id">
-            <el-input v-model="editingBmcValue.bmc_ip" size="small" style="width: 120px" @keyup.enter="saveBmc(row.id)" @blur="saveBmc(row.id)" placeholder="BMC IP" autocomplete="off" />
+          <template v-if="editingBmcId === row.id && editingBmcField === 'bmc_ip'">
+            <el-input v-model="editingBmcValue" size="small" style="width: 120px" @keyup.enter="saveBmc(row.id)" @blur="saveBmc(row.id)" placeholder="BMC IP" autocomplete="off" />
           </template>
           <template v-else>
             <span class="tags-cell" @mousedown.prevent="startEditBmc($event, row, 'bmc_ip')" title="点击编辑BMC">{{ row.bmc_ip || '—' }}</span>
@@ -83,8 +83,8 @@
       </el-table-column>
       <el-table-column label="BMC 账号" min-width="120">
         <template #default="{ row }">
-          <template v-if="editingBmcId === row.id">
-            <el-input v-model="editingBmcValue.bmc_username" size="small" style="width: 100px" @keyup.enter="saveBmc(row.id)" @blur="saveBmc(row.id)" placeholder="用户名" autocomplete="off" />
+          <template v-if="editingBmcId === row.id && editingBmcField === 'bmc_username'">
+            <el-input v-model="editingBmcValue" size="small" style="width: 100px" @keyup.enter="saveBmc(row.id)" @blur="saveBmc(row.id)" placeholder="用户名" autocomplete="off" />
           </template>
           <template v-else>
             <span class="tags-cell" @mousedown.prevent="startEditBmc($event, row, 'bmc_username')">{{ row.bmc_username || '—' }}</span>
@@ -93,11 +93,11 @@
       </el-table-column>
       <el-table-column label="BMC 密码" min-width="120">
         <template #default="{ row }">
-          <template v-if="editingBmcId === row.id">
-            <el-input v-model="editingBmcValue.bmc_password" size="small" style="width: 100px" @keyup.enter="saveBmc(row.id)" @blur="saveBmc(row.id)" placeholder="密码" autocomplete="off" />
+          <template v-if="editingBmcId === row.id && editingBmcField === 'bmc_password'">
+            <el-input v-model="editingBmcValue" size="small" style="width: 100px" @keyup.enter="saveBmc(row.id)" @blur="saveBmc(row.id)" placeholder="密码" autocomplete="off" />
           </template>
           <template v-else>
-            <span class="tags-cell" @mousedown.prevent="startEditBmc($event, row, 'bmc_password')">{{ row.bmc_password ? '******' : '—' }}</span>
+            <span class="tags-cell" @mousedown.prevent="startEditBmc($event, row, 'bmc_password')">{{ row.bmc_password || '—' }}</span>
           </template>
         </template>
       </el-table-column>
@@ -237,7 +237,8 @@ const editingDescId = ref(null)
 const editingDescValue = ref('')
 const descInputRef = ref(null)
 const editingBmcId = ref(null)
-const editingBmcValue = ref({ bmc_ip: '', bmc_username: '', bmc_password: '' })
+const editingBmcValue = ref('')
+const editingBmcField = ref(null)
 
 const bmcInputRef = ref(null)
 
@@ -263,7 +264,8 @@ async function saveDesc(id) {
 
 function startEditBmc(event, row, field) {
   editingBmcId.value = row.id
-  editingBmcValue.value = { bmc_ip: row.bmc_ip || '', bmc_username: row.bmc_username || '', bmc_password: row.bmc_password || '' }
+  editingBmcField.value = field
+  editingBmcValue.value = row[field] || ''
   nextTick(() => {
     // 通过事件 target 往上找到该行 tr，再聚焦对应列的输入框
     const tr = event.target.closest('.el-table__body tr')
@@ -277,18 +279,17 @@ async function saveBmc(id) {
   if (editingBmcId.value !== id) return
   const idx = servers.value.findIndex(s => s.id === id)
   if (idx === -1) return
+  const field = editingBmcField.value
+  if (!field) return
   try {
-    await serverApi.update(id, {
-      bmc_ip: editingBmcValue.value.bmc_ip,
-      bmc_username: editingBmcValue.value.bmc_username,
-      bmc_password: editingBmcValue.value.bmc_password,
-    })
-    // 直接替换整个对象，确保响应式更新
-    servers.value[idx] = { ...servers.value[idx], ...editingBmcValue.value }
+    await serverApi.update(id, { [field]: editingBmcValue.value })
+    // 只更新对应字段，确保响应式
+    servers.value[idx] = { ...servers.value[idx], [field]: editingBmcValue.value }
   } catch (e) {
     ElMessage.error(e.response?.data?.detail || '保存BMC信息失败')
   } finally {
     editingBmcId.value = null
+    editingBmcField.value = null
   }
 }
 
