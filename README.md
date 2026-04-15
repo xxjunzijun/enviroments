@@ -46,6 +46,12 @@ pnpm run dev
 - 主界面标签/备注/BMC 信息点击行内编辑（回车/失焦自动保存）
 - 详情页 60 秒缓存，重复打开秒开
 
+**交换机管理**
+- 交换机 CRUD（名称、IP、端口、用户名、密码、标签、备注）
+- 顶部 Tab 切换：服务器列表 / 交换机列表
+- 交换机"关联服务器"弹窗多选
+- 服务器列表"关联交换机"列，点击弹窗多选关联
+
 **文件管理器**
 - 通过 SFTP 浏览服务器目录
 - 支持上传/下载文件
@@ -69,7 +75,6 @@ pnpm run dev
 
 ### ❌ 待做
 
-- 交换机管理
 - 拓扑图（服务器网口 ↔ 交换机 ↔ 端口 映射）
 - LLDP 邻居自动发现
 - Alembic 数据库迁移（替代手动 ALTER TABLE）
@@ -114,9 +119,19 @@ https://github.com/xxjunzijun/enviroments
 | v0.2.0 | 修复日志路径bug，新增标签行内编辑、搜索栏、detail_fetch日志记录 |
 | v0.3.0 | 新增CPU型号列、网卡PCI信息采集（地址/设备描述/速率） |
 | v0.4.0 | 新增备注主界面可编辑、BMC IP/账号/密码字段 |
+| v0.6.0 | 交换机管理模块：switches表、server_switches关联表、Tab切换、关联服务器/交换机多选弹窗 |
 | v0.5.x | 详情页60秒缓存、表格列宽策略、Chrome自动填充修复、Vue响应式修复 |
 
 ## 开发记录
+
+### v0.6.0 (2026-04-15)
+- 新增 `Switch` 模型（`backend/app/models/switch.py`）和 `server_switches` 多对多关联表
+- 新增 `switches` API 路由（`backend/app/api/v1/routers/switches.py`）：CRUD + 关联管理
+- 顶部 Tab 切换：服务器列表 / 交换机列表（`App.vue`）
+- `SwitchList.vue`：交换机管理完整页面（CRUD、标签/备注行内编辑、关联服务器弹窗）
+- 服务器列表新增"关联交换机"列，点击弹窗多选交换机
+- `el-select` 多选组件实现服务器 ↔ 交换机多对多关联
+- 修复 ServerList.vue BMC 账号/密码列点击错误聚焦到 BMC IP 的 bug
 
 ### v0.5.x (2026-04-14)
 - 详情页60秒模块级缓存，重复打开秒开，采集后同步更新
