@@ -36,3 +36,23 @@ export const logs = {
 
   clear: (serverId) => api.delete(`/servers/${serverId}/logs/clear`),
 }
+
+export const switches = {
+  list: () => api.get('/switches').then(r => r.data),
+
+  get: (id) => api.get(`/switches/${id}`).then(r => r.data),
+
+  create: (data) => api.post('/switches', data).then(r => r.data),
+
+  update: (id, data) => api.put(`/switches/${id}`, data).then(r => r.data),
+
+  delete: (id) => api.delete(`/switches/${id}`),
+
+  getServers: (id) => api.get(`/switches/${id}/servers`).then(r => r.data),
+}
+
+export const serverSwitchAssoc = {
+  get: (serverId) => api.get(`/switches/server/${serverId}/switches`).then(r => r.data),
+
+  set: (serverId, switchIds) => api.post(`/switches/server/${serverId}/switches`, { switch_ids: switchIds }),
+}

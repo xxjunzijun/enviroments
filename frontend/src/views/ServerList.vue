@@ -77,7 +77,7 @@
             <el-input v-model="editingBmcValue.bmc_ip" size="small" style="width: 120px" @keyup.enter="saveBmc(row.id)" @blur="saveBmc(row.id)" placeholder="BMC IP" autocomplete="off" />
           </template>
           <template v-else>
-            <span class="tags-cell" @mousedown.prevent="startEditBmc(row)" title="点击编辑BMC">{{ row.bmc_ip || '—' }}</span>
+            <span class="tags-cell" @mousedown.prevent="startEditBmc(row, 'bmc_ip')" title="点击编辑BMC">{{ row.bmc_ip || '—' }}</span>
           </template>
         </template>
       </el-table-column>
@@ -87,7 +87,7 @@
             <el-input v-model="editingBmcValue.bmc_username" size="small" style="width: 100px" @keyup.enter="saveBmc(row.id)" @blur="saveBmc(row.id)" placeholder="用户名" autocomplete="off" />
           </template>
           <template v-else>
-            <span class="tags-cell" @mousedown.prevent="startEditBmc(row)">{{ row.bmc_username || '—' }}</span>
+            <span class="tags-cell" @mousedown.prevent="startEditBmc(row, 'bmc_username')">{{ row.bmc_username || '—' }}</span>
           </template>
         </template>
       </el-table-column>
@@ -97,8 +97,13 @@
             <el-input v-model="editingBmcValue.bmc_password" size="small" style="width: 100px" show-password @keyup.enter="saveBmc(row.id)" @blur="saveBmc(row.id)" placeholder="密码" autocomplete="off" />
           </template>
           <template v-else>
-            <span class="tags-cell" @mousedown.prevent="startEditBmc(row)">{{ row.bmc_password ? '******' : '—' }}</span>
+            <span class="tags-cell" @mousedown.prevent="startEditBmc(row, 'bmc_password')">{{ row.bmc_password ? '******' : '—' }}</span>
           </template>
+        </template>
+      </el-table-column>
+      <el-table-column label="关联交换机" min-width="120" align="center">
+        <template #default="{ row }">
+          <el-link type="primary" @click="openAssocDialog(row)">{{ row.assoc_switch_count ?? '—' }}</el-link>
         </template>
       </el-table-column>
       <el-table-column label="操作" min-width="150" align="center">
@@ -154,6 +159,17 @@
 
     <!-- Detail Drawer -->
     <ServerDetail :serverId="activeServerId" @close="activeServerId = null" @server-updated="loadServers" @open-edit="openEditById" />
+
+    <!-- Assoc Dialog -->
+    <el-dialog v-model="showAssocDialog" :title="`关联交换机 — ${assocTargetServer?.ip}`" width="480px">
+      <el-select v-model="selectedSwitchIds" multiple placeholder="选择关联的交换机" style="width: 100%">
+        <el-option v-for="sw in allSwitches" :key="sw.id" :label="`${sw.name} (${sw.ip})`" :value="sw.id" />
+      </el-select>
+      <template #footer>
+        <el-button @click="showAssocDialog = false">取消</el-button>
+        <el-button type="primary" @click="saveAssoc" :loading="savingAssoc">保存</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -161,10 +177,15 @@
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Refresh, Search } from '@element-plus/icons-vue'
-import { servers as serverApi } from '../api/index.js'
+import { servers as serverApi, switches as switchApi, serverSwitchAssoc } from '../api/index.js'
 import ServerDetail from '../components/ServerDetail.vue'
 
 const loading = ref(false)
+const showAssocDialog = ref(false)
+const savingAssoc = ref(false)
+const assocTargetServer = ref(null)
+const selectedSwitchIds = ref([])
+const allSwitches = ref([])
 const checkingAll = ref(false)
 const showAddDialog = ref(false)
 const servers = ref([])
@@ -232,13 +253,13 @@ async function saveDesc(id) {
   }
 }
 
-function startEditBmc(row) {
+function startEditBmc(row, field) {
   editingBmcId.value = row.id
   editingBmcValue.value = { bmc_ip: row.bmc_ip || '', bmc_username: row.bmc_username || '', bmc_password: row.bmc_password || '' }
   nextTick(() => {
-    // 聚焦该行第一个可见的 BMC 输入框
+    // 聚焦该行对应列的输入框
     const rowEl = [...document.querySelectorAll('.el-table__body tr')]
-      .find(tr => tr.querySelector('[placeholder="BMC IP"]'))
+      .find(tr => tr.querySelector(`[placeholder="${field === 'bmc_ip' ? 'BMC IP' : field === 'bmc_username' ? '用户名' : '密码'}"]`))
     rowEl?.querySelector('input')?.focus()
   })
 }
@@ -373,6 +394,40 @@ async function checkAllStatus() {
   checkingAll.value = false
   const online = results.filter(r => r?.online).length
   ElMessage.info(`检测完成：${online}/${results.length} 在线`)
+}
+
+async function openAssocDialog(row) {
+  assocTargetServer.value = row
+  selectedSwitchIds.value = []
+  showAssocDialog.value = true
+  try {
+    const [assocData, allSwitchData] = await Promise.all([
+      serverSwitchAssoc.get(row.id),
+      switchApi.list(),
+    ])
+    selectedSwitchIds.value = (assocData.switches || []).map(s => s.id)
+    allSwitches.value = allSwitchData.switches || []
+  } catch (e) {
+    ElMessage.error('加载交换机列表失败')
+  }
+}
+
+async function saveAssoc() {
+  if (!assocTargetServer.value) return
+  savingAssoc.value = true
+  try {
+    await serverSwitchAssoc.set(assocTargetServer.value.id, selectedSwitchIds.value)
+    const idx = servers.value.findIndex(s => s.id === assocTargetServer.value.id)
+    if (idx !== -1) {
+      servers.value[idx] = { ...servers.value[idx], assoc_switch_count: selectedSwitchIds.value.length }
+    }
+    ElMessage.success('关联已保存')
+    showAssocDialog.value = false
+  } catch (e) {
+    ElMessage.error(e.response?.data?.detail || '保存关联失败')
+  } finally {
+    savingAssoc.value = false
+  }
 }
 
 onMounted(loadServers)

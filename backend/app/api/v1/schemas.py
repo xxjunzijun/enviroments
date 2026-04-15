@@ -86,3 +86,54 @@ class ServerDetailResponse(BaseModel):
     description: Optional[str] = None
     tags: str
     cached_at: Optional[datetime] = None
+
+
+# ─── Switch ────────────────────────────────────────────────────────────────────
+
+class SwitchBase(BaseModel):
+    name: str
+    ip: str
+    port: int = 22
+    username: str
+    password: Optional[str] = None
+    description: Optional[str] = None
+    tags: str = ""
+
+
+class SwitchCreate(SwitchBase):
+    pass
+
+
+class SwitchUpdate(BaseModel):
+    name: Optional[str] = None
+    ip: Optional[str] = None
+    port: Optional[int] = None
+    username: Optional[str] = None
+    password: Optional[str] = None
+    description: Optional[str] = None
+    tags: Optional[str] = None
+
+
+class SwitchResponse(BaseModel):
+    id: int
+    name: str
+    ip: str
+    port: int
+    username: str
+    password: Optional[str] = None
+    description: Optional[str] = None
+    tags: str
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class SwitchListResponse(BaseModel):
+    total: int
+    switches: list[SwitchResponse]
+
+
+class ServerSwitchAssocRequest(BaseModel):
+    switch_ids: list[int]

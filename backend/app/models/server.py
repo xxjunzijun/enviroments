@@ -1,10 +1,18 @@
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, Text
+from sqlalchemy.orm import relationship
 from datetime import datetime
 from app.core.database import Base
 
 
 class Server(Base):
     __tablename__ = "servers"
+
+    switches = relationship(
+        "Switch",
+        secondary="server_switches",
+        back_populates="servers",
+        lazy="selectin"
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     ip = Column(String(45), unique=True, nullable=False)

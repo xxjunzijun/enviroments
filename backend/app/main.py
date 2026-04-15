@@ -11,7 +11,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from app.core.database import init_db
-from app.api.v1.routers import servers, files, logs
+from app.api.v1.routers import servers, files, logs, switches
 
 
 def get_frontend_dist():
@@ -45,6 +45,7 @@ app = FastAPI(title="Enviroments", version="1.0.0", lifespan=lifespan)
 app.include_router(servers.router, prefix="/api/v1")
 app.include_router(files.router, prefix="/api/v1")
 app.include_router(logs.router, prefix="/api/v1")
+app.include_router(switches.router, prefix="/api/v1")
 
 @app.get("/")
 def root():
