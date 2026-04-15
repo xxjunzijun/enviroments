@@ -114,9 +114,10 @@
           <el-link type="primary" @click="openAssocDialog(row)">{{ row.assoc_switch_count ?? '—' }}</el-link>
         </template>
       </el-table-column>
-      <el-table-column label="操作" min-width="150" align="center">
+      <el-table-column label="操作" min-width="200" align="center">
         <template #default="{ row }">
           <el-button size="small" type="primary" @click="openDetail(row)">查看详情</el-button>
+          <el-button size="small" @click="openTerminal(row)">Web SSH</el-button>
           <el-button size="small" type="danger" @click="remove(row)">删除</el-button>
         </template>
       </el-table-column>
@@ -178,6 +179,14 @@
         <el-button type="primary" @click="saveAssoc" :loading="savingAssoc">保存</el-button>
       </template>
     </el-dialog>
+
+    <!-- Web SSH Terminal -->
+    <WebTerminal
+      v-model="showTerminal"
+      :target-id="terminalTarget.id"
+      :target-type="terminalTarget.type"
+      :target-label="terminalTarget.label"
+    />
   </div>
 </template>
 
@@ -187,6 +196,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Refresh, Search } from '@element-plus/icons-vue'
 import { servers as serverApi, switches as switchApi, serverSwitchAssoc } from '../api/index.js'
 import ServerDetail from '../components/ServerDetail.vue'
+import WebTerminal from '../components/WebTerminal.vue'
 
 const loading = ref(false)
 const showAssocDialog = ref(false)
@@ -200,6 +210,8 @@ const servers = ref([])
 const editing = ref(null)
 const saving = ref(false)
 const activeServerId = ref(null)
+const showTerminal = ref(false)
+const terminalTarget = ref({ id: null, type: 'server', label: '' })
 const searchQuery = ref('')
 
 const filteredServers = computed(() => {
@@ -327,6 +339,11 @@ async function loadServers() {
 
 function openDetail(row) {
   activeServerId.value = row.id
+}
+
+function openTerminal(row) {
+  terminalTarget.value = { id: row.id, type: 'server', label: row.ip }
+  showTerminal.value = true
 }
 
 function openAdd() {

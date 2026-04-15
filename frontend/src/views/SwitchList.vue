@@ -61,9 +61,10 @@
           <el-link type="primary" @click="openAssocDialog(row)">{{ row.assoc_server_count ?? '—' }}</el-link>
         </template>
       </el-table-column>
-      <el-table-column label="操作" min-width="180" align="center">
+      <el-table-column label="操作" min-width="200" align="center">
         <template #default="{ row }">
           <el-button size="small" type="primary" @click="openDetail(row)">查看详情</el-button>
+          <el-button size="small" @click="openTerminal(row)">Web SSH</el-button>
           <el-button size="small" type="danger" @click="remove(row)">删除</el-button>
         </template>
       </el-table-column>
@@ -114,6 +115,14 @@
       </template>
     </el-dialog>
 
+    <!-- Web SSH Terminal -->
+    <WebTerminal
+      v-model="showTerminal"
+      :target-id="terminalTarget.id"
+      :target-type="terminalTarget.type"
+      :target-label="terminalTarget.label"
+    />
+
   </div>
 </template>
 
@@ -124,6 +133,7 @@ import { Plus, Search } from '@element-plus/icons-vue'
 import { switches, serverSwitchAssoc } from '../api/index.js'
 import { servers } from '../api/index.js'
 import SwitchDetail from '../components/SwitchDetail.vue'
+import WebTerminal from '../components/WebTerminal.vue'
 
 // ── State ────────────────────────────────────────────────────────────────────
 const loading = ref(false)
@@ -138,6 +148,8 @@ const assocTargetSwitch = ref(null)
 const selectedServerIds = ref([])
 const allServers = ref([])
 const activeSwitchId = ref(null)
+const showTerminal = ref(false)
+const terminalTarget = ref({ id: null, type: 'switch', label: '' })
 
 const form = ref({ name: '', ip: '', port: 22, username: '', password: '', tags: '', description: '' })
 
@@ -250,6 +262,11 @@ async function remove(row) {
 
 function openDetail(row) {
   activeSwitchId.value = row.id
+}
+
+function openTerminal(row) {
+  terminalTarget.value = { id: row.id, type: 'switch', label: row.name || row.ip }
+  showTerminal.value = true
 }
 
 function openEditById(id) {
