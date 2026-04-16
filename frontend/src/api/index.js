@@ -50,6 +50,10 @@ export const servers = {
   fetchDetail: (id, refresh = false) =>
     api.get(`/servers/${id}/detail`, { params: { refresh } }).then(r => r.data),
 
+  favorite: (id) => api.post(`/servers/${id}/favorite`).then(r => r.data),
+
+  unfavorite: (id) => api.delete(`/servers/${id}/favorite`).then(r => r.data),
+
   occupy: (id) => api.post(`/servers/${id}/occupy`).then(r => r.data),
 
   release: (id) => api.post(`/servers/${id}/release`).then(r => r.data),

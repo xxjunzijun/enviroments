@@ -28,6 +28,21 @@
           </el-table>
           <el-empty v-else description="暂无网卡信息" />
 
+          <div class="detail-note-panel">
+            <div class="detail-note-header">
+              <span>详情记录</span>
+              <el-button size="small" type="primary" @click="saveDetailNote" :loading="savingDetailNote">
+                保存
+              </el-button>
+            </div>
+            <el-input
+              v-model="detailNoteDraft"
+              type="textarea"
+              :autosize="{ minRows: 5, maxRows: 12 }"
+              placeholder="可以在这里记录维护信息、排障过程、资产说明等"
+            />
+          </div>
+
           <div class="detail-actions">
             <el-button type="primary" size="small" @click="fetchDetail" :loading="fetchingDetail">
               <el-icon><Refresh /></el-icon> 重新采集
@@ -194,6 +209,8 @@ const logs = ref([])
 const loadingLogs = ref(false)
 const logOffset = ref(0)
 const logTotal = ref(0)
+const detailNoteDraft = ref('')
+const savingDetailNote = ref(false)
 
 // ── Detail load ─────────────────────────────────────────────────────────────────
 
@@ -212,6 +229,7 @@ watch(() => props.serverId, async (id) => {
   const cached = detailCache.get(id)
   if (cached) {
     detail.value = cached.detail
+    detailNoteDraft.value = cached.detail.detail_note || ''
     serverIp.value = cached.detail.ip
     initialLoading.value = false
   } else {
@@ -222,6 +240,7 @@ watch(() => props.serverId, async (id) => {
   try {
     const data = await serverApi.fetchDetail(id)
     detail.value = data
+    detailNoteDraft.value = data.detail_note || ''
     serverIp.value = data.ip
     detailCache.set(id, { detail: data, timestamp: Date.now() })
   } catch {
@@ -237,6 +256,7 @@ async function loadDetail() {
   loadingDetail.value = true
   try {
     detail.value = await serverApi.fetchDetail(props.serverId)
+    detailNoteDraft.value = detail.value.detail_note || ''
     serverIp.value = detail.value.ip
   } catch (e) {
     ElMessage.error('加载失败')
@@ -249,6 +269,7 @@ async function fetchDetail() {
   fetchingDetail.value = true
   try {
     detail.value = await serverApi.fetchDetail(props.serverId, true)
+    detailNoteDraft.value = detail.value.detail_note || ''
     detailCache.set(props.serverId, { detail: detail.value, timestamp: Date.now() })
     ElMessage.success('采集成功')
     if (activeTab.value === 'logs') {
@@ -273,6 +294,21 @@ async function checkStatus() {
     }
   } catch {
     ElMessage.error('检测失败')
+  }
+}
+
+async function saveDetailNote() {
+  if (!props.serverId || !detail.value) return
+  savingDetailNote.value = true
+  try {
+    const updated = await serverApi.update(props.serverId, { detail_note: detailNoteDraft.value })
+    detail.value = { ...detail.value, detail_note: updated.detail_note }
+    detailCache.set(props.serverId, { detail: detail.value, timestamp: Date.now() })
+    ElMessage.success('详情记录已保存')
+  } catch (e) {
+    ElMessage.error(e.response?.data?.detail || '保存详情记录失败')
+  } finally {
+    savingDetailNote.value = false
   }
 }
 
@@ -486,6 +522,21 @@ function logClass(log) {
 .file-size { color: #999; font-size: 12px; }
 .file-toolbar { display: flex; gap: 8px; margin-top: 10px; }
 .detail-actions { display: flex; gap: 8px; margin-top: 16px; }
+.detail-note-panel {
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  background: #fafafa;
+}
+.detail-note-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  color: #303133;
+  font-weight: 600;
+}
 
 /* Log tab */
 .log-toolbar { display: flex; gap: 8px; margin-bottom: 10px; }

@@ -17,6 +17,9 @@
       <el-button @click="checkAllStatus" :loading="checkingAll">
         <el-icon><Refresh /></el-icon> 检测全部状态
       </el-button>
+      <el-button :type="showFavoritesOnly ? 'warning' : 'default'" @click="showFavoritesOnly = !showFavoritesOnly">
+        {{ showFavoritesOnly ? '显示全部' : '只看收藏' }}
+      </el-button>
     </div>
 
     <!-- Server Table -->
@@ -114,11 +117,23 @@
           <el-link type="primary" @click="openAssocDialog(row)">{{ row.assoc_switch_count ?? '—' }}</el-link>
         </template>
       </el-table-column>
-      <el-table-column label="操作" min-width="190" align="center">
+      <el-table-column label="操作" min-width="260" align="center">
         <template #default="{ row }">
           <el-button size="small" type="primary" @click="openDetail(row)">查看详情</el-button>
-          <el-button size="small" @click="openTerminal(row)">Web SSH</el-button>
+          <el-button size="small" type="success" @click="openTerminal(row)">Web SSH</el-button>
           <el-button size="small" type="danger" @click="remove(row)">删除</el-button>
+        </template>
+      </el-table-column>
+      <el-table-column label="收藏" width="70" align="center">
+        <template #default="{ row }">
+          <button
+            class="favorite-button"
+            :class="{ active: row.is_favorite }"
+            :title="row.is_favorite ? '取消收藏' : '收藏服务器'"
+            @click.stop="toggleFavorite(row)"
+          >
+            {{ row.is_favorite ? '★' : '☆' }}
+          </button>
         </template>
       </el-table-column>
     </el-table>
@@ -203,11 +218,15 @@ const editing = ref(null)
 const saving = ref(false)
 const activeServerId = ref(null)
 const searchQuery = ref('')
+const showFavoritesOnly = ref(false)
 
 const filteredServers = computed(() => {
-  if (!searchQuery.value.trim()) return servers.value
+  const source = showFavoritesOnly.value
+    ? servers.value.filter(s => s.is_favorite)
+    : servers.value
+  if (!searchQuery.value.trim()) return source
   const q = searchQuery.value.trim().toLowerCase()
-  return servers.value.filter(s =>
+  return source.filter(s =>
     s.ip?.toLowerCase().includes(q) ||
     s.tags?.toLowerCase().includes(q) ||
     s.cached_os_version?.toLowerCase().includes(q) ||
@@ -380,6 +399,7 @@ async function saveServer() {
       ElMessage.success('添加成功')
       showAddDialog.value = false
       form.value = defaultForm()
+      await refreshCreatedServerStatus(created.id)
       await loadServers()
       openDetail({ id: created.id })
     }
@@ -387,6 +407,15 @@ async function saveServer() {
     ElMessage.error(e.response?.data?.detail || '保存失败')
   } finally {
     saving.value = false
+  }
+}
+
+async function refreshCreatedServerStatus(serverId) {
+  try {
+    await serverApi.checkStatus(serverId)
+    await serverApi.fetchDetail(serverId, true)
+  } catch (e) {
+    ElMessage.warning('服务器已添加，但自动采集详情失败，可稍后手动重新采集')
   }
 }
 
@@ -437,6 +466,24 @@ async function handleRelease(row) {
   }
 }
 
+async function toggleFavorite(row) {
+  const nextValue = !row.is_favorite
+  const previousValue = row.is_favorite
+  row.is_favorite = nextValue
+  try {
+    const updated = nextValue
+      ? await serverApi.favorite(row.id)
+      : await serverApi.unfavorite(row.id)
+    const idx = servers.value.findIndex(s => s.id === row.id)
+    if (idx !== -1) {
+      servers.value[idx] = { ...servers.value[idx], is_favorite: updated.is_favorite }
+    }
+  } catch (e) {
+    row.is_favorite = previousValue
+    ElMessage.error(e.response?.data?.detail || '收藏状态更新失败')
+  }
+}
+
 async function openAssocDialog(row) {
   assocTargetServer.value = row
   selectedSwitchIds.value = []
@@ -484,6 +531,20 @@ onMounted(loadServers)
 .server-table {
   border-radius: 8px;
   overflow: hidden;
+}
+
+.favorite-button {
+  border: none;
+  background: transparent;
+  color: #c0c4cc;
+  cursor: pointer;
+  font-size: 22px;
+  line-height: 1;
+  padding: 0 4px;
+}
+.favorite-button.active,
+.favorite-button:hover {
+  color: #e6a23c;
 }
 
 .tags-cell {

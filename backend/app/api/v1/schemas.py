@@ -11,6 +11,7 @@ class ServerBase(BaseModel):
     ssh_password: Optional[str] = None
     ssh_key_file: Optional[str] = None
     description: Optional[str] = None
+    detail_note: Optional[str] = None
     tags: str = ""
     bmc_ip: Optional[str] = None
     bmc_username: Optional[str] = None
@@ -29,6 +30,7 @@ class ServerUpdate(BaseModel):
     ssh_password: Optional[str] = None
     ssh_key_file: Optional[str] = None
     description: Optional[str] = None
+    detail_note: Optional[str] = None
     tags: Optional[str] = None
     bmc_ip: Optional[str] = None
     bmc_username: Optional[str] = None
@@ -44,6 +46,7 @@ class ServerResponse(BaseModel):
     ssh_password: Optional[str] = None
     ssh_key_file: Optional[str] = None
     description: Optional[str] = None
+    detail_note: Optional[str] = None
     tags: str
     bmc_ip: Optional[str] = None
     bmc_username: Optional[str] = None
@@ -61,6 +64,7 @@ class ServerResponse(BaseModel):
     cached_interfaces: Optional[list] = None # extracted from cached_info (list, light)
     occupied_by: Optional[str] = None
     assoc_switch_count: Optional[int] = None
+    is_favorite: bool = False
 
     class Config:
         from_attributes = True
@@ -89,6 +93,7 @@ class ServerDetailResponse(BaseModel):
     interfaces: Optional[list] = None
     is_online: bool
     description: Optional[str] = None
+    detail_note: Optional[str] = None
     tags: str
     cached_at: Optional[datetime] = None
 

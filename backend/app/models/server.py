@@ -22,6 +22,7 @@ class Server(Base):
     ssh_password = Column(String(255), nullable=True)
     ssh_key_file = Column(String(500), nullable=True)
     description = Column(Text, nullable=True)
+    detail_note = Column(Text, nullable=True)
     tags = Column(String(500), default="")
     bmc_ip = Column(String(45), nullable=True)
     bmc_username = Column(String(255), nullable=True)

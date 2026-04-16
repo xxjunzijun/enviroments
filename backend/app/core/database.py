@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy.pool import StaticPool
 
@@ -28,4 +28,14 @@ def init_db():
     from app.models.server import Server
     from app.models.switch import Switch
     from app.models.user import User
+    from app.models.server_favorite import ServerFavorite
     Base.metadata.create_all(bind=engine)
+    ensure_schema()
+
+
+def ensure_schema():
+    """Apply small SQLite-compatible schema updates for existing databases."""
+    with engine.begin() as conn:
+        server_columns = {row[1] for row in conn.execute(text("PRAGMA table_info(servers)"))}
+        if "detail_note" not in server_columns:
+            conn.execute(text("ALTER TABLE servers ADD COLUMN detail_note TEXT"))

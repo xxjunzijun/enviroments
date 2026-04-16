@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.auth import get_current_user
 from app.models.server import Server
+from app.models.server_favorite import ServerFavorite
 from app.api.v1.schemas import (
     ServerCreate, ServerUpdate, ServerResponse,
     ServerListResponse, StatusCheckResponse, ServerDetailResponse
@@ -27,11 +28,12 @@ def _write_log(server_id: int, payload: dict):
 
 
 @router.get("", response_model=ServerListResponse)
-def list_servers(db: Session = Depends(get_db)):
+def list_servers(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     servers = db.query(Server).order_by(Server.ip).all()
+    favorite_ids = _favorite_server_ids(db, current_user.id)
     return ServerListResponse(
         total=len(servers),
-        servers=[_to_response(s) for s in servers]
+        servers=[_to_response(s, s.id in favorite_ids) for s in servers]
     )
 
 
@@ -71,6 +73,40 @@ def get_server(server_id: int, db: Session = Depends(get_db)):
     return _to_response(server)
 
 
+@router.post("/{server_id}/favorite", response_model=ServerResponse)
+def favorite_server(server_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    server = db.query(Server).filter(Server.id == server_id).first()
+    if not server:
+        raise HTTPException(status_code=404, detail="Server not found")
+
+    existing = db.query(ServerFavorite).filter(
+        ServerFavorite.user_id == current_user.id,
+        ServerFavorite.server_id == server_id,
+    ).first()
+    if not existing:
+        db.add(ServerFavorite(user_id=current_user.id, server_id=server_id))
+        db.commit()
+
+    return _to_response(server, is_favorite=True)
+
+
+@router.delete("/{server_id}/favorite", response_model=ServerResponse)
+def unfavorite_server(server_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    server = db.query(Server).filter(Server.id == server_id).first()
+    if not server:
+        raise HTTPException(status_code=404, detail="Server not found")
+
+    favorite = db.query(ServerFavorite).filter(
+        ServerFavorite.user_id == current_user.id,
+        ServerFavorite.server_id == server_id,
+    ).first()
+    if favorite:
+        db.delete(favorite)
+        db.commit()
+
+    return _to_response(server, is_favorite=False)
+
+
 @router.post("", response_model=ServerResponse, status_code=201)
 def create_server(data: ServerCreate, db: Session = Depends(get_db)):
     existing = db.query(Server).filter(Server.ip == data.ip).first()
@@ -85,6 +121,7 @@ def create_server(data: ServerCreate, db: Session = Depends(get_db)):
         ssh_password=data.ssh_password,
         ssh_key_file=data.ssh_key_file,
         description=data.description,
+        detail_note=data.detail_note,
         tags=data.tags,
         bmc_ip=data.bmc_ip,
         bmc_username=data.bmc_username,
@@ -115,6 +152,7 @@ def delete_server(server_id: int, db: Session = Depends(get_db)):
     server = db.query(Server).filter(Server.id == server_id).first()
     if not server:
         raise HTTPException(status_code=404, detail="Server not found")
+    db.query(ServerFavorite).filter(ServerFavorite.server_id == server_id).delete()
     db.delete(server)
     db.commit()
 
@@ -171,6 +209,7 @@ def fetch_detail(server_id: int, refresh: bool = False, db: Session = Depends(ge
                 interfaces=cached.get("interfaces") or [],
                 is_online=server.is_online,
                 description=server.description,
+                detail_note=server.detail_note,
                 tags=server.tags,
                 cached_at=server.cached_at,
             )
@@ -224,12 +263,18 @@ def fetch_detail(server_id: int, refresh: bool = False, db: Session = Depends(ge
         interfaces=info.interfaces or [],
         is_online=True,
         description=server.description,
+        detail_note=server.detail_note,
         tags=server.tags,
         cached_at=server.cached_at,
     )
 
 
-def _to_response(server: Server) -> ServerResponse:
+def _favorite_server_ids(db: Session, user_id: int) -> set[int]:
+    rows = db.query(ServerFavorite.server_id).filter(ServerFavorite.user_id == user_id).all()
+    return {server_id for (server_id,) in rows}
+
+
+def _to_response(server: Server, is_favorite: bool = False) -> ServerResponse:
     cached_info = None
     cached_os_version = None
     cached_cpu_model = None
@@ -256,6 +301,7 @@ def _to_response(server: Server) -> ServerResponse:
         ssh_password=server.ssh_password,
         ssh_key_file=server.ssh_key_file,
         description=server.description,
+        detail_note=server.detail_note,
         tags=server.tags,
         bmc_ip=server.bmc_ip,
         bmc_username=server.bmc_username,
@@ -273,4 +319,5 @@ def _to_response(server: Server) -> ServerResponse:
         cached_interfaces=cached_interfaces,
         occupied_by=server.occupied_by,
         assoc_switch_count=len(server.switches) if server.switches else 0,
+        is_favorite=is_favorite,
     )
