@@ -171,7 +171,7 @@ async def terminal_connect(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"SSH connect error: {e}")
+        logger.exception(f"SSH connect error: {e}")
         raise HTTPException(status_code=500, detail="SSH connection failed")
 
     asyncio.create_task(recycle_worker(worker, delay=30.0))
@@ -262,6 +262,8 @@ async def terminal_websocket(websocket: WebSocket):
 
     except WebSocketDisconnect:
         logger.info(f"[TerminalManager] WebSocket disconnected for worker {worker.id}")
+    except RuntimeError as e:
+        logger.info(f"[TerminalManager] WebSocket closed for worker {worker.id}: {e}")
     except Exception as e:
         import traceback
         logger.error(f"[TerminalManager] WebSocket error for worker {worker.id}: {e}\n{traceback.format_exc()}")
@@ -307,6 +309,8 @@ async def _ssh_reader(worker: SSHWorker):
     def _sync_recv():
         """Sync recv - runs in thread pool, never blocks the asyncio loop."""
         try:
+            if not worker.chan.recv_ready():
+                return b""
             return worker.chan.recv(BUF_SIZE)
         except Exception:
             return None  # None means error/closed
@@ -324,9 +328,9 @@ async def _ssh_reader(worker: SSHWorker):
                 await worker.close(reason="chan recv error")
                 break
 
-            if not data:  # empty = EOF
-                await worker.close(reason="chan eof")
-                break
+            if not data:
+                await asyncio.sleep(0.05)
+                continue
 
             # Forward to WebSocket
             if worker.handler and not worker.closed:

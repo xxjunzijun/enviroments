@@ -56,11 +56,17 @@ app.include_router(terminal.router, prefix="/api/v1")
 
 @app.get("/")
 def root():
-    return FileResponse(os.path.join(FRONTEND_DIST, "index.html"))
+    return FileResponse(
+        os.path.join(FRONTEND_DIST, "index.html"),
+        headers={"Cache-Control": "no-store"},
+    )
 
 @app.get("/assets/{filename}")
 def assets(filename: str):
-    return FileResponse(os.path.join(FRONTEND_DIST, "assets", filename))
+    return FileResponse(
+        os.path.join(FRONTEND_DIST, "assets", filename),
+        headers={"Cache-Control": "no-store"},
+    )
 
 
 @app.websocket("/ws/ssh")

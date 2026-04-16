@@ -6,6 +6,7 @@
     </div>
     <WebTerminal
       v-if="ready"
+      class="ssh-terminal"
       :target-id="targetId"
       :target-type="targetType"
       :target-label="targetLabel"
@@ -91,9 +92,12 @@ onMounted(fetchCredentials)
 .standalone-ssh {
   width: 100vw;
   height: 100vh;
-  background: #1e1e1e;
+  padding: 12px;
+  box-sizing: border-box;
+  background: #111827;
   display: flex;
   flex-direction: column;
+  gap: 12px;
   overflow: hidden;
 }
 .ssh-header {
@@ -106,6 +110,17 @@ onMounted(fetchCredentials)
   flex-shrink: 0;
   height: 44px;
   box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+}
+.ssh-terminal {
+  flex: 1 1 auto;
+  width: 100%;
+  height: auto !important;
+  min-height: 0;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
 }
 .target-label { font-size: 14px; font-weight: 500; }
 .loading {

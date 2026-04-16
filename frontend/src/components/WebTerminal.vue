@@ -22,7 +22,7 @@
 </template>
 
 <script setup>
-import { ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { ref, watch, onBeforeUnmount, nextTick } from 'vue'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { ElMessage } from 'element-plus'
@@ -56,6 +56,7 @@ let ws = null
 let pingInterval = null
 let resizeObserver = null
 let connected = false
+let connecting = false
 let workerId = null
 let encoding = 'utf-8'
 
@@ -102,13 +103,22 @@ function openTerminal() {
   const proposed = fitAddon?.proposeDimensions()
   const dims = (proposed && proposed.cols > 0 && proposed.rows > 0) ? proposed : fallback
   term.resize(dims.cols, dims.rows)
-  fitAddon?.fit()
+  fitAndResize()
+  requestAnimationFrame(() => {
+    fitAndResize()
+    requestAnimationFrame(fitAndResize)
+  })
 
   resizeObserver = new ResizeObserver(() => {
-    try { fitAddon?.fit() } catch {}
-    sendResize()
+    fitAndResize()
   })
   resizeObserver.observe(terminalRef.value)
+}
+
+function fitAndResize() {
+  if (!term || !fitAddon) return
+  try { fitAddon.fit() } catch {}
+  sendResize()
 }
 
 function sendResize() {
@@ -160,12 +170,14 @@ function connectWs(id) {
   const host = window.location.host
   const url = `${protocol}//${host}/api/v1/terminal/ws?id=${encodeURIComponent(id)}`
   ws = new WebSocket(url)
+  ws.binaryType = 'arraybuffer'
 
   ws.onopen = () => {
     statusText.value = 'SSH 已连接'
     statusClass.value = 'status-connected'
     connected = true
-    sendResize()
+    fitAndResize()
+    setTimeout(fitAndResize, 100)
     pingInterval = setInterval(() => {
       if (ws?.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ data: '' }))  // keep-alive (or use ping if supported)
@@ -175,16 +187,22 @@ function connectWs(id) {
 
   // xterm.js accepts Uint8Array, ArrayBuffer, and strings
   ws.onmessage = (event) => {
+    if (event.data instanceof ArrayBuffer) {
+      term?.write(new Uint8Array(event.data))
+      return
+    }
+
+    if (event.data instanceof Blob) {
+      event.data.arrayBuffer().then((buffer) => {
+        term?.write(new Uint8Array(buffer))
+      })
+      return
+    }
+
     try {
       const msg = JSON.parse(event.data)
       if (msg.data) {
-        // msg.data is raw bytes from SSH — write directly
-        if (typeof msg.data === 'string') {
-          term?.write(msg.data)
-        } else {
-          // Could be base64 or ArrayBuffer — if string base64 decode
-          term?.write(msg.data)
-        }
+        term?.write(String(msg.data))
       }
       if (msg.type === 'error') {
         statusText.value = `错误: ${msg.data}`
@@ -192,7 +210,6 @@ function connectWs(id) {
         ElMessage.error(`SSH 错误: ${msg.data}`)
       }
     } catch {
-      // Binary frame — write as-is
       term?.write(event.data)
     }
   }
@@ -214,7 +231,8 @@ function connectWs(id) {
 
 // ── Combined connect ────────────────────────────────────────────────────────────
 async function connect() {
-  if (connected) return
+  if (connected || connecting) return
+  connecting = true
   statusText.value = '连接中…'
   statusClass.value = 'status-connecting'
 
@@ -230,6 +248,8 @@ async function connect() {
     statusText.value = `连接失败: ${e.message}`
     statusClass.value = 'status-error'
     ElMessage.error(e.message)
+  } finally {
+    connecting = false
   }
 }
 
@@ -250,6 +270,7 @@ function cleanup() {
     term = null
   }
   connected = false
+  connecting = false
   workerId = null
 }
 
@@ -278,17 +299,6 @@ watch(visible, (val) => {
   emit('update:modelValue', val)
 })
 
-onMounted(() => {
-  // full-screen mode: connect immediately on mount
-  if (props.fullScreen && props.modelValue) {
-    nextTick(() => {
-      initTerminal()
-      openTerminal()
-      connect()
-    })
-  }
-})
-
 onBeforeUnmount(cleanup)
 </script>
 
@@ -297,8 +307,11 @@ onBeforeUnmount(cleanup)
   width: 100%;
   height: 100%;
   background: #1e1e1e;
-  padding: 8px;
+  min-height: 0;
+  padding: 10px;
   box-sizing: border-box;
+  border-radius: 10px;
+  overflow: hidden;
 }
 
 .terminal-container {
