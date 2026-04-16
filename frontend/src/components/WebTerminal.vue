@@ -97,7 +97,13 @@ function openTerminal() {
   console.log('[WS SSH] openTerminal: calling term.open()')
   term.open(terminalRef.value)
   term.focus()
-  const dims = fitAddon?.proposeDimensions() || { cols: 200, rows: 40 }
+
+  // Ensure valid dimensions before resize. proposeDimensions() may return null
+  // if the container hasn't been laid out yet (0×0), so use fallback values.
+  const fallback = { cols: 200, rows: 40 }
+  const proposed = fitAddon?.proposeDimensions()
+  const dims = (proposed && proposed.cols > 0 && proposed.rows > 0) ? proposed : fallback
+  console.log('[WS SSH] openTerminal: resize to', dims, '(proposed=', proposed, ', fallback=', fallback, ')')
   term.resize(dims.cols, dims.rows)
   fitAddon?.fit()
   console.log('[WS SSH] openTerminal: success, cols=', dims.cols, 'rows=', dims.rows)

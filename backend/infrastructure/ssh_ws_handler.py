@@ -169,17 +169,25 @@ class SSHChannelSession:
         t = threading.Thread(target=self._connect, daemon=True)
         t.start()
 
-    def write(self, data: str):
-        """Write data to SSH channel (from WebSocket -> SSH)."""
+    def write(self, data: str) -> bool:
+        """Write data to SSH channel (from WebSocket -> SSH). Returns True on success."""
         print(f"[SSH write] called with: {repr(data)}", flush=True)
-        if self.channel and self.running:
-            try:
-                sent = self.channel.send(data)
-                print(f"[SSH write] sent {sent} bytes", flush=True)
-            except Exception as e:
-                print(f"[SSH write] error: {e}", flush=True)
-        else:
-            print(f"[SSH write] skipped: channel={self.channel}, running={self.running}", flush=True)
+        if not self.channel:
+            print(f"[SSH write] skipped: channel is None", flush=True)
+            return False
+        if not self.running:
+            print(f"[SSH write] skipped: not running", flush=True)
+            return False
+        try:
+            sent = self.channel.send(data)
+            print(f"[SSH write] sent {sent} bytes", flush=True)
+            if sent == 0:
+                print(f"[SSH write] WARNING: sent=0, channel buffer may be full", flush=True)
+                return False
+            return True
+        except Exception as e:
+            print(f"[SSH write] error: {type(e).__name__}: {e}", flush=True)
+            raise  # Re-raise so caller (run_in_executor) sees the error
 
     def resize(self, width: int, height: int):
         """Resize terminal window."""
