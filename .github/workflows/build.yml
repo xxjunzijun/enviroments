@@ -1,4 +1,4 @@
-name: Build Windows x64 EXE
+﻿name: Build Windows x64 EXE
 
 on:
   workflow_dispatch:
@@ -17,7 +17,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.tag }}
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -50,8 +50,6 @@ jobs:
           restore-keys: |
             pnpm-${{ runner.os }}-
 
-      # ── Frontend ──────────────────────────────────────────────────────────────
-
       - name: Install frontend deps
         working-directory: frontend
         shell: pwsh
@@ -62,8 +60,6 @@ jobs:
         shell: pwsh
         run: pnpm run build
 
-      # ── Backend ──────────────────────────────────────────────────────────────
-
       - name: Install Python deps
         shell: pwsh
         run: pip install -r backend/requirements.txt pyinstaller
@@ -71,9 +67,7 @@ jobs:
       - name: Build with PyInstaller
         working-directory: backend
         shell: pwsh
-        run: |
-          # SPECPATH = backend/ dir, outputs to ../dist relative to backend
-          pyinstaller Enviroments.spec --noconfirm --clean --distpath ../dist --workpath ../build
+        run: pyinstaller Enviroments.spec --noconfirm --clean --distpath ../dist --workpath ../build
 
       - name: Rename output folder
         shell: pwsh

@@ -1,15 +1,16 @@
 @echo off
 REM Enviroments - Build Script for Windows
-REM Prerequisites: pip install pyinstaller, Node.js, pnpm
+REM Prerequisites: Python, Node.js, pnpm, and pip install pyinstaller
 
 echo Building frontend...
 cd /d "%~dp0frontend"
 call pnpm install
 call pnpm run build
-cd /d "%~dp0"
 
 echo Building Windows executable...
-pyinstaller Enviroments.spec --noconfirm
+cd /d "%~dp0backend"
+pyinstaller Enviroments.spec --noconfirm --clean --distpath "%~dp0dist" --workpath "%~dp0build"
+cd /d "%~dp0"
 
 echo.
 echo ========================================

@@ -14,3 +14,4 @@ core
 backend/log/
 backend/app/api/log/
 backend/test_simple_ws.py
+build/

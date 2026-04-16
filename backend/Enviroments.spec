@@ -2,9 +2,9 @@ import os
 
 block_cipher = None
 
-# working-directory: backend → cwd = backend/
-# All paths are relative to the backend/ directory
-FRONTEND_DIST = os.path.join("..", "frontend", "dist")  # ../frontend/dist
+# Working directory: backend/
+# All paths are relative to the backend directory.
+FRONTEND_DIST = os.path.join("..", "frontend", "dist")
 
 a = Analysis(
     ["app/main.py"],
@@ -13,15 +13,25 @@ a = Analysis(
         (FRONTEND_DIST, "frontend/dist"),
     ],
     hiddenimports=[
-        "app.api.v1.routers.servers",
+        "app.api.v1.routers.auth",
         "app.api.v1.routers.files",
-        "app.models.server",
-        "app.core.database",
-        "infrastructure.ssh_client",
-        "infrastructure.sftp_client",
-        "infrastructure.ssh_worker",
+        "app.api.v1.routers.logs",
+        "app.api.v1.routers.servers",
+        "app.api.v1.routers.switches",
         "app.api.v1.routers.terminal",
+        "app.core.auth",
+        "app.core.database",
+        "app.core.scheduler",
+        "app.models.server",
+        "app.models.server_favorite",
+        "app.models.switch",
+        "app.models.user",
+        "infrastructure.sftp_client",
+        "infrastructure.ssh_client",
+        "infrastructure.ssh_worker",
         "uvicorn",
+        "uvicorn.lifespan",
+        "uvicorn.lifespan.on",
         "uvicorn.loops",
         "uvicorn.loops.auto",
         "uvicorn.protocols",
@@ -29,8 +39,6 @@ a = Analysis(
         "uvicorn.protocols.http.auto",
         "uvicorn.protocols.websockets",
         "uvicorn.protocols.websockets.auto",
-        "uvicorn.lifespan",
-        "uvicorn.lifespan.on",
         "fastapi",
         "fastapi.applications",
         "fastapi.routing",
@@ -38,7 +46,6 @@ a = Analysis(
         "sqlalchemy.orm",
         "pydantic",
         "paramiko",
-        "aiosqlite",
     ],
 )
 

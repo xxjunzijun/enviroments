@@ -1,28 +1,63 @@
-# Enviroments
+﻿# Enviroments
 
-机房服务器与交换机管理工具。
+机房服务器与交换机管理工具。后端使用 FastAPI 提供 API、定时任务、SSH/SFTP/Web SSH 能力；前端使用 Vue 3 + Element Plus；生产模式下后端直接托管前端构建产物。
 
-## 技术架构
+## 当前能力
 
+- 多用户注册/登录，JWT Bearer Token 鉴权，前端自动携带 Token。
+- 服务器管理：添加、编辑、删除、搜索、状态检测、占用/释放、标签、备注、BMC 信息。
+- 服务器详情采集：系统版本、CPU 型号/核心数、内存、网卡与 PCI 信息，支持缓存与手动重新采集。
+- 每个用户独立收藏服务器，主页可切换“只看收藏”。
+- 服务器详情页支持可自由编辑保存的“详情记录”文本框。
+- Web SSH：浏览器内终端，基于 WebSocket + xterm.js。
+- 文件管理：通过 SFTP 浏览目录、上传、下载，单击目录进入。
+- 交换机管理：交换机 CRUD、SSH 采集 `display version`、关联服务器、详情和日志。
+- 日志系统：按服务器/交换机写入 JSON 行日志，前端详情页可查看、刷新和清空。
+- Windows EXE 打包：GitHub Actions 和本地脚本均可构建。
+
+## 项目结构
+
+```text
+enviroments/
+├─ backend/
+│  ├─ app/
+│  │  ├─ api/v1/routers/   auth.py files.py logs.py servers.py switches.py terminal.py
+│  │  ├─ core/             auth.py database.py scheduler.py
+│  │  ├─ models/           server.py server_favorite.py switch.py user.py
+│  │  └─ main.py
+│  ├─ infrastructure/      ssh_client.py sftp_client.py ssh_worker.py
+│  ├─ tests/               webssh_smoke.py
+│  ├─ log/                 JSON-line 日志目录
+│  ├─ Enviroments.spec     PyInstaller 配置
+│  └─ requirements.txt
+├─ frontend/
+│  ├─ src/
+│  │  ├─ api/              index.js
+│  │  ├─ components/       ServerDetail.vue SwitchDetail.vue WebTerminal.vue
+│  │  ├─ views/            Login.vue ServerList.vue SwitchList.vue
+│  │  └─ App.vue
+│  ├─ dist/                前端构建产物，由后端静态托管
+│  ├─ package.json
+│  └─ pnpm-lock.yaml
+├─ .github/workflows/      build.yml
+├─ build.bat               Windows 本地打包脚本
+├─ build.sh                Linux/macOS 本地打包脚本
+└─ README.md
 ```
-frontend/          Vue 3 + Element Plus + Axios（内置于 exe）
-backend/            Python + FastAPI + paramiko + APScheduler
-infrastructure/     纯函数 SSH/SFTP 调用，无 FastAPI 依赖
-log/                backend/log/{server_id}.log  JSON 行日志
-                    backend/log/switch_{id}.log  交换机日志
-```
 
-## 快速启动
+## 开发环境启动
 
-### 后端（开发）
+### 后端
 
 ```bash
 cd backend
 pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-### 前端（开发）
+后端地址：`http://127.0.0.1:8000`
+
+### 前端
 
 ```bash
 cd frontend
@@ -30,118 +65,104 @@ pnpm install
 pnpm run dev
 ```
 
-访问：`http://localhost:8000`（前端已内置，无需另开）
+前端开发地址：`http://localhost:3000`
 
----
+开发模式下，Vite 会把 `/api` 和 `/ws` 代理到 `http://localhost:8000`。
 
-## 功能清单
+## 生产构建
 
-### ✅ 已完成
+### 只构建前端
 
-**多用户认证**
-- JWT 注册/登录（30天有效），注册开放无限制
-- 所有 API 接口 Bearer Token 鉴权
-- 前端 Axios interceptor 自动附加 Token，401 自动跳转登录页
-- 右上角用户名 + 退出登录，数据共享（所有用户共同编辑同一套服务器/交换机）
-
-**服务器管理**
-- 添加/编辑/删除服务器（IP、端口、系统类型、SSH 凭证、BMC 信息、标签、备注）
-- 在线状态检测（每 5 分钟自动检测）
-- SSH 信息采集（OS 版本、CPU 型号/核数、内存、网卡含 PCI 信息 — Linux/Windows 双支持）
-- 每 30 分钟自动采集详情，cached_info 存最新完整快照（JSON 结构，易扩展新字段）
-- **使用人占用/释放**：多人协同时标识谁在操作，防重复占用
-- 详情页默认读缓存毫秒响应，"重新采集"才走 SSH
-- 主界面标签/备注/BMC 三字段独立行内编辑（互不干扰），点击自动聚焦
-
-**交换机管理**
-- 交换机 CRUD（名称、IP、端口、用户名、密码、标签、备注）
-- 顶部 Tab 切换：服务器列表 / 交换机列表
-- **display version 采集**：华为 VRP / H3C Comware / Cisco IOS 自动识别，解析设备型号/运行时间/补丁版本
-- SSH 登录后若遇密码变更提示自动回答 N 跳过
-- 交换机"关联服务器"弹窗多选
-- 服务器列表"关联交换机"列，点击弹窗多选关联
-
-**文件管理器**
-- 通过 SFTP 浏览服务器目录
-- 支持上传/下载文件
-- breadcrumb 路径导航（点击跳转任意目录）
-- 双击目录进入/文件下载
-
-**日志系统**
-- JSON 行格式存储在 `backend/log/{server_id}.log` 和 `backend/log/switch_{id}.log`
-- 前端详情页 Tab 展示，每行显示时间/类型/状态/关键信息
-- 支持刷新和清空
-
-**Windows exe 构建**
-- GitHub Actions workflow 自动构建
-- 下载即用，无需安装 Python
-
-### ❌ 待做
-
-- 拓扑图（服务器网口 ↔ 交换机 ↔ 端口 映射）
-- Web SSH 功能（xterm.js + WebSocket，浏览器内嵌终端）
-
----
-
-## 目录结构
-
-```
-enviroments/
-├── backend/
-│   ├── app/
-│   │   ├── api/v1/routers/  servers.py  files.py  logs.py  switches.py  auth.py
-│   │   ├── core/             database.py  scheduler.py  auth.py
-│   │   ├── models/          server.py  switch.py  user.py
-│   │   └── main.py
-│   ├── infrastructure/       ssh_client.py  sftp_client.py
-│   ├── log/                  JSON-line 日志文件
-│   └── requirements.txt
-├── frontend/
-│   ├── src/
-│   │   ├── views/            ServerList.vue  SwitchList.vue  Login.vue
-│   │   ├── components/       ServerDetail.vue  SwitchDetail.vue
-│   │   ├── api/              index.js
-│   │   └── App.vue
-│   └── dist/                 已打包静态文件
-├── .github/workflows/        build.yml
-├── Enviroments.spec           PyInstaller 配置
-├── build.bat / build.sh
-└── README.md
+```bash
+cd frontend
+pnpm install
+pnpm run build
 ```
 
-## GitHub
+构建产物会生成到 `frontend/dist/`。后端启动后会直接托管该目录，因此也可以访问 `http://127.0.0.1:8000` 查看完整页面。
+
+### Windows EXE
+
+先确认已安装 Python、Node.js、pnpm，并能安装 Python 依赖：
+
+```bat
+build.bat
+```
+
+脚本会执行以下动作：
+
+- 安装/更新前端依赖并构建 `frontend/dist/`。
+- 进入 `backend/`，使用 `backend/Enviroments.spec` 打包。
+- 输出到根目录 `dist/Enviroments/`。
+
+运行：
+
+```bat
+dist\Enviroments\Enviroments.exe
+```
+
+### Linux/macOS 本地打包
+
+```bash
+chmod +x build.sh
+./build.sh
+```
+
+输出目录为 `dist/Enviroments/`。当前 GitHub Actions 目标是 Windows x64，本地 Linux/macOS 打包主要用于开发验证。
+
+## GitHub Actions 构建
+
+工作流文件：`.github/workflows/build.yml`
+
+当前流程：
+
+- 使用 Windows Server 2022。
+- 安装 Python 3.11、Node.js 20、pnpm 10。
+- `frontend` 下执行 `pnpm install --frozen-lockfile` 和 `pnpm run build`。
+- 安装 `backend/requirements.txt` 与 PyInstaller。
+- 在 `backend` 目录执行 `pyinstaller Enviroments.spec --noconfirm --clean --distpath ../dist --workpath ../build`。
+- 上传 `dist/Enviroments-*` 构建产物。
+
+## 常用检查
+
+```bash
+cd frontend
+pnpm run build
+```
+
+```bash
+cd backend
+python -m compileall app infrastructure tests
+```
+
+```bash
+cd backend
+python tests/webssh_smoke.py --help
+```
+
+`webssh_smoke.py` 是 Web SSH 冒烟测试脚本，需要提供可连接的目标服务器信息后才会真正执行连接测试。
+
+## 数据与日志
+
+- SQLite 数据库默认在 `backend/enviroments.db`。
+- 服务器日志在 `backend/log/{server_id}.log`。
+- 交换机日志在 `backend/log/switch_{id}.log`。
+- `frontend/dist/`、`backend/enviroments.db`、日志、虚拟环境和依赖目录不应提交到仓库。
+
+## 版本记录
+
+| 版本 | 说明 |
+| --- | --- |
+| v0.9.x | Web SSH 稳定性修复、终端页面间距优化、xterm 版本兼容调整。 |
+| v0.8.x | 服务器收藏、收藏筛选、详情记录、服务器详情抽屉加宽、文件管理单击进入目录。 |
+| v0.7.x | 多用户 JWT 认证、服务器占用/释放、BMC 字段、交换机 SSH 采集和 display version 解析。 |
+| v0.6.x | 交换机管理、服务器与交换机关联、Tab 切换。 |
+| v0.5.x | 详情页缓存、表格列宽优化、Chrome 自动填充修复。 |
+| v0.4.x | 备注和 BMC 信息行内编辑。 |
+| v0.3.x | CPU 型号、网卡 PCI 信息采集。 |
+| v0.2.x | 日志路径修复、标签编辑、搜索栏。 |
+| v0.1.x | MVP：服务器管理、文件浏览、SSH 信息采集。 |
+
+## 仓库
 
 https://github.com/xxjunzijun/enviroments
-
-## 版本标签
-
-| 标签 | 说明 |
-|------|------|
-| v0.7.0 | 多用户JWT认证、使用人占用/释放、BMC三字段独立编辑、display version采集、华为/H3C/Cisco自动识别、SSH密码变更提示自动跳过 |
-| v0.6.0 | 交换机管理模块：switches表、server_switches关联表、Tab切换、关联服务器/交换机多选弹窗 |
-| v0.5.x | 详情页60秒缓存、表格列宽策略、Chrome自动填充修复、Vue响应式修复 |
-| v0.4.0 | 备注主界面可编辑、BMC IP/账号/密码字段 |
-| v0.3.0 | CPU型号列、网卡PCI信息采集（地址/设备描述/速率） |
-| v0.2.0 | 修复日志路径bug、标签行内编辑、搜索栏 |
-| v0.1.0 | MVP：服务器管理 + 文件浏览器 + SSH 信息采集 |
-
-## 开发记录
-
-### v0.7.0 (2026-04-15)
-- **多用户认证**：新增 User 模型 + JWT（python-jose + bcrypt），注册登录开放，30天有效
-- **服务器使用人**：occupied_by 字段，占用/释放 API，防重复占用
-- **BMC 字段**：三列独立编辑互不干扰，点击自动聚焦，密码明文显示
-- **交换机 SSH 采集**：新增 `get_switch_info_via_ssh()`，交互式 shell 执行 `display version`
-- **华为 VRP 解析**：正确提取 VRP 版本/补丁版本/设备型号/运行时间/主机名（CE6860 等型号）
-- **SSH 兼容性**：登录后遇密码变更提示自动发送 N 跳过
-- **详情页优化**：默认读 cached_info 毫秒响应，`?refresh=true` 才走 SSH 重新采集
-- `SwitchDetail.vue`：与 ServerDetail.vue 结构对齐（详情/日志 Tab）
-- 交换机详情页关联服务器显示 IP 列表
-- 数据库 ALTER TABLE：switches 加 cached_info/is_online 等列
-
-### v0.6.0 (2026-04-15)
-- 新增 `Switch` 模型和 `server_switches` 多对多关联表
-- 新增 `switches` API 路由：CRUD + 关联管理
-- 顶部 Tab 切换：服务器列表 / 交换机列表
-- `SwitchList.vue`：交换机管理完整页面
-- 服务器列表新增"关联交换机"列，`el-select` 多选交换机

@@ -1,6 +1,6 @@
 #!/bin/bash
 # Enviroments - Build Script (Linux/macOS)
-# Prerequisites: pip install pyinstaller pnpm
+# Prerequisites: Python, Node.js, pnpm, and pip install pyinstaller
 
 set -e
 
@@ -11,7 +11,9 @@ pnpm run build
 cd ..
 
 echo "==> Building executable..."
-pyinstaller Enviroments.spec --noconfirm
+cd backend
+pyinstaller Enviroments.spec --noconfirm --clean --distpath ../dist --workpath ../build
+cd ..
 
 echo ""
 echo "========================================"
