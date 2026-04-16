@@ -19,6 +19,8 @@ a = Analysis(
         "app.core.database",
         "infrastructure.ssh_client",
         "infrastructure.sftp_client",
+        "infrastructure.ssh_worker",
+        "app.api.v1.routers.terminal",
         "uvicorn",
         "uvicorn.loops",
         "uvicorn.loops.auto",
