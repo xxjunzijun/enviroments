@@ -302,7 +302,9 @@ async def terminal_websocket(websocket: WebSocket):
             break
 
     if not worker:
-        await websocket.close(code=4001, reason="Worker not found or already connected")
+        import sys
+        print(f'[DIAG] Worker {worker_id} not found. Registry={list(TerminalManager.clients.keys())}', flush=True, file=sys.stderr)
+        await websocket.close(code=4001, reason='Worker not found or already connected')
         return
 
     # Mark as connected
