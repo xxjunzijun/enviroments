@@ -1,5 +1,6 @@
 import os
 import sys
+import asyncio
 import warnings
 
 # Suppress paramiko cryptography deprecation warnings
