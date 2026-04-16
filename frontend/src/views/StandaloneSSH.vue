@@ -22,15 +22,26 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
 import WebTerminal from '../components/WebTerminal.vue'
 
-const route = useRoute()
-const targetId = Number(route.query.id || 0)
-const targetType = route.query.type || 'server'
-const targetLabel = route.query.label || 'SSH 终端'
 const ready = ref(false)
 const credentials = ref({ host: '', port: 22, username: '', password: '' })
+
+// Parse query params from hash URL like #/ssh/server/123/Label
+function parseSshRoute() {
+  const hash = window.location.hash
+  const match = hash.match(/^#\/ssh\/([a-z]+)\/(\d+)(?:\/(.+))?$/)
+  if (match) {
+    return {
+      type: match[1],
+      id: Number(match[2]),
+      label: decodeURIComponent(match[3] || `${match[1]} #${match[2]}`),
+    }
+  }
+  return { type: 'server', id: 0, label: 'SSH 终端' }
+}
+
+const { type: targetType, id: targetId, label: targetLabel } = parseSshRoute()
 
 async function fetchCredentials() {
   const token = localStorage.getItem('token')
