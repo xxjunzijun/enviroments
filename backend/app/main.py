@@ -153,12 +153,14 @@ async def websocket_ssh(
 
             async def do_send_json(payload: dict):
                 """Send JSON without blocking the pump loop."""
+                print(f"[WS SSH] do_send_json START: {payload.get('type')}", flush=True)
                 try:
                     await asyncio.wait_for(websocket.send_json(payload), timeout=2.0)
+                    print(f"[WS SSH] do_send_json OK: {payload.get('type')}", flush=True)
                 except asyncio.TimeoutError:
-                    print(f"[WS SSH] send timeout for {payload.get('type')}", flush=True)
-                except Exception as e:
-                    print(f"[WS SSH] send error [{payload.get('type')}]: {e}", flush=True)
+                    print(f"[WS SSH] do_send_json TIMEOUT: {payload.get('type')}", flush=True)
+                except BaseException as e:
+                    print(f"[WS SSH] do_send_json ERROR [{payload.get('type')}]: {type(e).__name__}: {e}", flush=True)
 
             # Wait for connected signal first
             try:
