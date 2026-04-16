@@ -13,7 +13,7 @@
 - 文件管理：通过 SFTP 浏览目录、上传、下载，单击目录进入。
 - 交换机管理：交换机 CRUD、SSH 采集 `display version`、关联服务器、详情和日志。
 - 日志系统：按服务器/交换机写入 JSON 行日志，前端详情页可查看、刷新和清空。
-- Windows EXE 打包：GitHub Actions 和本地脚本均可构建。
+- Windows EXE 与 Linux tar.gz 打包：GitHub Actions 和本地脚本均可构建。
 
 ## 项目结构
 
@@ -39,7 +39,8 @@ enviroments/
 │  ├─ dist/                前端构建产物，由后端静态托管
 │  ├─ package.json
 │  └─ pnpm-lock.yaml
-├─ .github/workflows/      build.yml
+├─ .github/workflows/      build.yml build-linux.yml
+├─ docs/                   README_DEPLOY_LINUX.md
 ├─ build.bat               Windows 本地打包脚本
 ├─ build.sh                Linux/macOS 本地打包脚本
 └─ README.md
@@ -101,6 +102,22 @@ build.bat
 dist\Enviroments\Enviroments.exe
 ```
 
+### GitHub Actions Linux 离线包
+
+仓库提供 `.github/workflows/build-linux.yml`，可以让 GitHub 在 Linux x64 环境中构建离线部署包。
+
+使用方式：
+
+- 打开 GitHub 仓库的 Actions 页面。
+- 选择 `Build Linux x64 Tarball`。
+- 点击 `Run workflow`，可选填写 tag，例如 `v1.0.0`。
+- 构建完成后下载 artifact：`Enviroments-linux-x64-*.tar.gz`。
+- 将 tar.gz 拷贝到离线 Linux，解压后执行 `./Enviroments`。
+
+详细离线运行说明见 `docs/README_DEPLOY_LINUX.md`。
+
+注意：GitHub 使用 Ubuntu 22.04 构建 Linux x64 包。非常老的离线系统可能存在 glibc 兼容问题，这种情况下需要在更接近目标系统的 Linux 环境中构建。
+
 ### Linux/macOS 本地打包
 
 ```bash
@@ -112,9 +129,9 @@ chmod +x build.sh
 
 ## GitHub Actions 构建
 
-工作流文件：`.github/workflows/build.yml`
+工作流文件：`.github/workflows/build.yml` 和 `.github/workflows/build-linux.yml`
 
-当前流程：
+Windows EXE 流程：
 
 - 使用 Windows Server 2022。
 - 安装 Python 3.11、Node.js 20、pnpm 10。
@@ -122,6 +139,13 @@ chmod +x build.sh
 - 安装 `backend/requirements.txt` 与 PyInstaller。
 - 在 `backend` 目录执行 `pyinstaller Enviroments.spec --noconfirm --clean --distpath ../dist --workpath ../build`。
 - 上传 `dist/Enviroments-*` 构建产物。
+
+Linux tar.gz 流程：
+
+- 使用 Ubuntu 22.04。
+- 安装 Python 3.11、Node.js 20、pnpm 10。
+- 构建前端并使用 PyInstaller 打包后端。
+- 将 `dist/Enviroments/` 和 `docs/README_DEPLOY_LINUX.md` 打成 `Enviroments-linux-x64-*.tar.gz`。
 
 ## 常用检查
 

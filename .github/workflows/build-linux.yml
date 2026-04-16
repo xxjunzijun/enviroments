@@ -1,0 +1,74 @@
+﻿name: Build Linux x64 Tarball
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Git tag to build (e.g. v1.0.0)'
+        required: false
+        type: string
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ hashFiles('backend/requirements.txt') }}
+          restore-keys: |
+            pip-${{ runner.os }}-
+
+      - name: Install frontend deps
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Build frontend
+        working-directory: frontend
+        run: pnpm run build
+
+      - name: Install Python deps
+        run: pip install -r backend/requirements.txt pyinstaller
+
+      - name: Build with PyInstaller
+        working-directory: backend
+        run: pyinstaller Enviroments.spec --noconfirm --clean --distpath ../dist --workpath ../build
+
+      - name: Package tarball
+        shell: bash
+        run: |
+          package_name="Enviroments-linux-x64-${{ inputs.tag || github.run_number }}"
+          mkdir -p release
+          cp -r dist/Enviroments "release/${package_name}"
+          cp docs/README_DEPLOY_LINUX.md "release/${package_name}/"
+          tar -czf "release/${package_name}.tar.gz" -C release "${package_name}"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Enviroments-linux-x64-${{ github.run_number }}
+          path: release/Enviroments-linux-x64-*.tar.gz
+          retention-days: 14
