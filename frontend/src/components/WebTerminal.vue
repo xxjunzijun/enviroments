@@ -31,14 +31,18 @@ import '@xterm/xterm/css/xterm.css'
 const props = defineProps({
   modelValue: Boolean,
   targetId: { type: Number, required: true },
-  targetType: { type: String, required: true },
+  targetType: { type: String, required: true },  // 'server' or 'switch'
   targetLabel: { type: String, default: '' },
   fullScreen: { type: Boolean, default: false },
+  // SSH credentials — if not passed, fetched from server list
+  host: { type: String, default: '' },
+  port: { type: Number, default: 22 },
+  username: { type: String, default: '' },
+  password: { type: String, default: '' },
 })
 
 const emit = defineEmits(['update:modelValue', 'closed'])
 
-// Expose connect so parent can call it
 defineExpose({ connect, cleanup })
 
 const terminalRef = ref(null)
@@ -52,11 +56,12 @@ let ws = null
 let pingInterval = null
 let resizeObserver = null
 let connected = false
+let workerId = null
+let encoding = 'utf-8'
 
 // ── Terminal init ──────────────────────────────────────────────────────────────
 function initTerminal() {
   if (term) return
-  console.log('[WS SSH] initTerminal: creating Terminal instance')
   term = new Terminal({
     cursorBlink: true,
     fontSize: 14,
@@ -73,40 +78,31 @@ function initTerminal() {
   fitAddon = new FitAddon()
   term.loadAddon(fitAddon)
 
+  // WebSocket input -> SSH
   term.onData((data) => {
-    console.log('[WS SSH] onData:', JSON.stringify(data))
     if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: 'input', data }))
+      ws.send(JSON.stringify({ data }))
     }
   })
 
+  // Terminal resize -> SSH pty resize
   term.onResize(({ cols, rows }) => {
     if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: 'resize', width: cols, height: rows }))
+      ws.send(JSON.stringify({ resize: [cols, rows] }))
     }
   })
-  console.log('[WS SSH] initTerminal: done')
 }
 
 function openTerminal() {
-  console.log('[WS SSH] openTerminal: termExists=', !!term, 'refExists=', !!terminalRef.value, 'fullScreen=', props.fullScreen)
-  if (!term || !terminalRef.value) {
-    console.warn('[WS SSH] openTerminal: skipped — term or ref missing')
-    return
-  }
-  console.log('[WS SSH] openTerminal: calling term.open()')
+  if (!term || !terminalRef.value) return
   term.open(terminalRef.value)
   term.focus()
 
-  // Ensure valid dimensions before resize. proposeDimensions() may return null
-  // if the container hasn't been laid out yet (0×0), so use fallback values.
   const fallback = { cols: 200, rows: 40 }
   const proposed = fitAddon?.proposeDimensions()
   const dims = (proposed && proposed.cols > 0 && proposed.rows > 0) ? proposed : fallback
-  console.log('[WS SSH] openTerminal: resize to', dims, '(proposed=', proposed, ', fallback=', fallback, ')')
   term.resize(dims.cols, dims.rows)
   fitAddon?.fit()
-  console.log('[WS SSH] openTerminal: success, cols=', dims.cols, 'rows=', dims.rows)
 
   resizeObserver = new ResizeObserver(() => {
     try { fitAddon?.fit() } catch {}
@@ -115,73 +111,93 @@ function openTerminal() {
   resizeObserver.observe(terminalRef.value)
 }
 
-// ── WebSocket connect ──────────────────────────────────────────────────────────
-function connect() {
-  console.log('[WS SSH] connect() called, already connected?', connected)
-  if (connected) return
+function sendResize() {
+  if (!term || !ws || ws.readyState !== WebSocket.OPEN) return
+  try {
+    ws.send(JSON.stringify({ resize: [term.cols, term.rows] }))
+  } catch {}
+}
 
+// ── Step 1: POST /api/v1/terminal/connect ──────────────────────────────────────
+async function createSession() {
   const token = localStorage.getItem('token')
-  if (!token) {
-    statusText.value = '未登录'
-    statusClass.value = 'status-error'
-    return
+  if (!token) throw new Error('未登录')
+
+  const apiBase = getApiBase()
+  const params = new URLSearchParams({
+    host: props.host,
+    port: props.port,
+    username: props.username,
+    password: props.password || '',
+    term: 'xterm',
+  })
+
+  const res = await fetch(`${apiBase}/api/v1/terminal/connect?${params}`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: '',
+  })
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: res.statusText }))
+    throw new Error(err.detail || '连接失败')
   }
 
+  const data = await res.json()
+  return data  // { id, encoding }
+}
+
+function getApiBase() {
+  return `${window.location.protocol}//${window.location.host}`
+}
+
+// ── Step 2: WebSocket /api/v1/terminal/ws?id=<id> ─────────────────────────────
+function connectWs(id) {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
   const host = window.location.host
-  const url = `${protocol}//${host}/ws/ssh?token=${encodeURIComponent(token)}&target_type=${props.targetType}&target_id=${props.targetId}`
-  console.log('[WS SSH] connecting to:', url)
-
+  const url = `${protocol}//${host}/api/v1/terminal/ws?id=${encodeURIComponent(id)}`
   ws = new WebSocket(url)
 
   ws.onopen = () => {
-    console.log('[WS SSH] ws.onopen fired')
-    statusText.value = '已连接'
+    statusText.value = 'SSH 已连接'
     statusClass.value = 'status-connected'
     connected = true
     sendResize()
     pingInterval = setInterval(() => {
       if (ws?.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type: 'ping' }))
+        ws.send(JSON.stringify({ data: '' }))  // keep-alive (or use ping if supported)
       }
     }, 30000)
   }
 
+  // xterm.js accepts Uint8Array, ArrayBuffer, and strings
   ws.onmessage = (event) => {
-    console.log('[WS SSH] ws.onmessage raw:', JSON.stringify(event.data).substring(0, 80))
-    let msg
     try {
-      msg = JSON.parse(event.data)
-      console.log('[WS SSH] ws.onmessage parsed:', msg)
-    } catch {
-      // Raw string — write directly (shouldn't happen with our JSON protocol)
-      console.warn('[WS SSH] ws.onmessage: non-JSON, writing directly to term')
-      term?.write(event.data)
-      return
-    }
-
-    if (msg.type === 'data') {
-      console.log('[WS SSH] ws.onmessage: writing', JSON.stringify(msg.data).substring(0, 60), 'to xterm')
-      try {
-        term?.write(msg.data)
-      } catch (e) {
-        console.error('[WS SSH] xterm write error:', e)
+      const msg = JSON.parse(event.data)
+      if (msg.data) {
+        // msg.data is raw bytes from SSH — write directly
+        if (typeof msg.data === 'string') {
+          term?.write(msg.data)
+        } else {
+          // Could be base64 or ArrayBuffer — if string base64 decode
+          term?.write(msg.data)
+        }
       }
-    } else if (msg.type === 'connected') {
-      console.log('[WS SSH] ws.onmessage: connected received')
-      statusText.value = 'SSH 已连接'
-      statusClass.value = 'status-connected'
-    } else if (msg.type === 'error') {
-      statusText.value = `错误: ${msg.data}`
-      statusClass.value = 'status-error'
-      ElMessage.error(`SSH 连接错误: ${msg.data}`)
-    } else if (msg.type === 'pong') {
-      // heartbeat response — ignore
+      if (msg.type === 'error') {
+        statusText.value = `错误: ${msg.data}`
+        statusClass.value = 'status-error'
+        ElMessage.error(`SSH 错误: ${msg.data}`)
+      }
+    } catch {
+      // Binary frame — write as-is
+      term?.write(event.data)
     }
   }
 
-  ws.onclose = () => {
-    console.log('[WS SSH] ws.onclose')
+  ws.onclose = (e) => {
     statusText.value = '连接已关闭'
     statusClass.value = 'status-disconnected'
     connected = false
@@ -189,24 +205,35 @@ function connect() {
     term?.write('\r\n\x1b[33m[连接已关闭]\x1b[0m\r\n')
   }
 
-  ws.onerror = (err) => {
-    console.error('[WS SSH] ws.onerror:', err)
+  ws.onerror = () => {
     statusText.value = '连接失败'
     statusClass.value = 'status-error'
     connected = false
   }
 }
 
-// ── Resize ─────────────────────────────────────────────────────────────────────
-function sendResize() {
-  if (!term || !ws || ws.readyState !== WebSocket.OPEN) return
+// ── Combined connect ────────────────────────────────────────────────────────────
+async function connect() {
+  if (connected) return
+  statusText.value = '连接中…'
+  statusClass.value = 'status-connecting'
+
   try {
-    const { cols, rows } = term
-    ws.send(JSON.stringify({ type: 'resize', width: cols, height: rows }))
-  } catch {}
+    // Step 1: Create session
+    const { id, encoding: enc } = await createSession()
+    workerId = id
+    encoding = enc || 'utf-8'
+
+    // Step 2: Open WebSocket
+    connectWs(workerId)
+  } catch (e) {
+    statusText.value = `连接失败: ${e.message}`
+    statusClass.value = 'status-error'
+    ElMessage.error(e.message)
+  }
 }
 
-// ── Cleanup ────────────────────────────────────────────────────────────────────
+// ── Cleanup ─────────────────────────────────────────────────────────────────────
 function cleanup() {
   clearInterval(pingInterval)
   pingInterval = null
@@ -223,7 +250,7 @@ function cleanup() {
     term = null
   }
   connected = false
-  console.log('[WS SSH] cleanup done')
+  workerId = null
 }
 
 function onClosed() {
@@ -232,20 +259,15 @@ function onClosed() {
 }
 
 // ── Visibility watch ───────────────────────────────────────────────────────────
-// For dialog mode: opens terminal + connects when dialog becomes visible
-// For full-screen mode (StandaloneSSH): also fires on mount via immediate:true
 watch(() => props.modelValue, async (val) => {
-  console.log('[WS SSH] modelValue watch:', val, 'fullScreen=', props.fullScreen)
   visible.value = val
   if (!val) {
     cleanup()
     return
   }
 
-  // Wait for DOM to be ready (dialog body to mount)
   await nextTick()
-  await nextTick()  // two ticks to be safe for el-dialog
-  console.log('[WS SSH] modelValue watch: DOM ready, ref=', !!terminalRef.value)
+  await nextTick()
 
   initTerminal()
   openTerminal()
@@ -257,7 +279,14 @@ watch(visible, (val) => {
 })
 
 onMounted(() => {
-  console.log('[WS SSH] onMounted: fullScreen=', props.fullScreen, 'modelValue=', props.modelValue)
+  // full-screen mode: connect immediately on mount
+  if (props.fullScreen && props.modelValue) {
+    nextTick(() => {
+      initTerminal()
+      openTerminal()
+      connect()
+    })
+  }
 })
 
 onBeforeUnmount(cleanup)
