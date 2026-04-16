@@ -29,11 +29,6 @@
         </template>
       </el-table-column>
       <el-table-column prop="ip" label="IP 地址" min-width="160" />
-      <el-table-column prop="os_type" label="系统" min-width="100">
-        <template #default="{ row }">
-          <el-tag size="small">{{ row.os_type }}</el-tag>
-        </template>
-      </el-table-column>
       <el-table-column prop="cached_os_version" label="系统版本" min-width="160" show-overflow-tooltip />
       <el-table-column prop="cached_cpu_model" label="CPU 型号" min-width="180" show-overflow-tooltip />
       <el-table-column prop="tags" label="标签" min-width="160">
@@ -54,27 +49,32 @@
           </template>
         </template>
       </el-table-column>
-      <el-table-column prop="description" label="备注" min-width="120">
+      <el-table-column prop="description" label="备注" width="180" show-overflow-tooltip>
         <template #default="{ row }">
           <template v-if="editingDescId === row.id">
             <el-input
               v-model="editingDescValue"
+              type="textarea"
               size="small"
-              style="width: 100px"
-              @keyup.enter="saveDesc(row.id)"
+              :rows="3"
+              :autosize="{ minRows: 3, maxRows: 6 }"
+              class="inline-desc-editor"
+              @keydown.enter.ctrl.prevent="saveDesc(row.id)"
               @blur="saveDesc(row.id)"
-              placeholder="备注" autocomplete="off"
+              ref="descInputRef"
+              placeholder="备注，Ctrl + Enter 保存"
+              autocomplete="off"
             />
           </template>
           <template v-else>
-            <span class="tags-cell" @mousedown.prevent="startEditDesc(row)" title="点击编辑备注">{{ row.description || '—' }}</span>
+            <span class="tags-cell desc-cell" @mousedown.prevent="startEditDesc(row)" title="点击编辑备注">{{ row.description || '—' }}</span>
           </template>
         </template>
       </el-table-column>
       <el-table-column label="BMC IP" min-width="140">
         <template #default="{ row }">
           <template v-if="editingBmcId === row.id && editingBmcField === 'bmc_ip'">
-            <el-input v-model="editingBmcValue" size="small" style="width: 120px" @keyup.enter="saveBmc(row.id)" @blur="saveBmc(row.id)" placeholder="BMC IP" autocomplete="off" />
+            <el-input ref="bmcInputRef" v-model="editingBmcValue" size="small" style="width: 120px" @keyup.enter="saveBmc(row.id)" @blur="saveBmc(row.id)" placeholder="BMC IP" autocomplete="off" />
           </template>
           <template v-else>
             <span class="tags-cell" @mousedown.prevent="startEditBmc($event, row, 'bmc_ip')" title="点击编辑BMC">{{ row.bmc_ip || '—' }}</span>
@@ -84,7 +84,7 @@
       <el-table-column label="BMC 账号" min-width="120">
         <template #default="{ row }">
           <template v-if="editingBmcId === row.id && editingBmcField === 'bmc_username'">
-            <el-input v-model="editingBmcValue" size="small" style="width: 100px" @keyup.enter="saveBmc(row.id)" @blur="saveBmc(row.id)" placeholder="用户名" autocomplete="off" />
+            <el-input ref="bmcInputRef" v-model="editingBmcValue" size="small" style="width: 100px" @keyup.enter="saveBmc(row.id)" @blur="saveBmc(row.id)" placeholder="用户名" autocomplete="off" />
           </template>
           <template v-else>
             <span class="tags-cell" @mousedown.prevent="startEditBmc($event, row, 'bmc_username')">{{ row.bmc_username || '—' }}</span>
@@ -94,7 +94,7 @@
       <el-table-column label="BMC 密码" min-width="120">
         <template #default="{ row }">
           <template v-if="editingBmcId === row.id && editingBmcField === 'bmc_password'">
-            <el-input v-model="editingBmcValue" size="small" style="width: 100px" @keyup.enter="saveBmc(row.id)" @blur="saveBmc(row.id)" placeholder="密码" autocomplete="off" />
+            <el-input ref="bmcInputRef" v-model="editingBmcValue" size="small" style="width: 100px" @keyup.enter="saveBmc(row.id)" @blur="saveBmc(row.id)" placeholder="密码" autocomplete="off" />
           </template>
           <template v-else>
             <span class="tags-cell" @mousedown.prevent="startEditBmc($event, row, 'bmc_password')">{{ row.bmc_password || '—' }}</span>
@@ -114,11 +114,10 @@
           <el-link type="primary" @click="openAssocDialog(row)">{{ row.assoc_switch_count ?? '—' }}</el-link>
         </template>
       </el-table-column>
-      <el-table-column label="操作" min-width="240" align="center">
+      <el-table-column label="操作" min-width="190" align="center">
         <template #default="{ row }">
           <el-button size="small" type="primary" @click="openDetail(row)">查看详情</el-button>
           <el-button size="small" @click="openTerminal(row)">Web SSH</el-button>
-          <el-button size="small" @click="openTerminalNewWindow(row)">新窗口</el-button>
           <el-button size="small" type="danger" @click="remove(row)">删除</el-button>
         </template>
       </el-table-column>
@@ -140,10 +139,10 @@
           </el-radio-group>
         </el-form-item>
         <el-form-item label="SSH 用户名" required>
-          <el-input v-model="form.ssh_username" placeholder="e.g. root" />
+          <el-input v-model="form.ssh_username" placeholder="e.g. root" @keyup.enter="saveServer" />
         </el-form-item>
         <el-form-item label="SSH 密码">
-          <el-input v-model="form.ssh_password" show-password placeholder="留空则使用密钥" />
+          <el-input v-model="form.ssh_password" show-password placeholder="留空则使用密钥" @keyup.enter="saveServer" />
         </el-form-item>
         <el-form-item label="标签">
           <el-input v-model="form.tags" placeholder="e.g. 生产,Web,北京" />
@@ -265,17 +264,17 @@ async function saveDesc(id) {
   }
 }
 
+function focusElementPlusInput(inputRef) {
+  const input = inputRef.value
+  input?.focus?.()
+  input?.select?.()
+}
+
 function startEditBmc(event, row, field) {
   editingBmcId.value = row.id
   editingBmcField.value = field
   editingBmcValue.value = row[field] || ''
-  nextTick(() => {
-    // 通过事件 target 往上找到该行 tr，再聚焦对应列的输入框
-    const tr = event.target.closest('.el-table__body tr')
-    if (!tr) return
-    const ph = field === 'bmc_ip' ? 'BMC IP' : field === 'bmc_username' ? '用户名' : '密码'
-    tr.querySelector(`[placeholder="${ph}"]`)?.focus()
-  })
+  nextTick(() => focusElementPlusInput(bmcInputRef))
 }
 
 async function saveBmc(id) {
@@ -366,6 +365,7 @@ function openEdit(row) {
 }
 
 async function saveServer() {
+  if (saving.value) return
   saving.value = true
   try {
     if (editing.value) {
@@ -496,6 +496,18 @@ onMounted(loadServers)
 .tags-cell:hover {
   background: #f0f9eb;
   color: #67c23a;
+}
+
+.desc-cell {
+  display: block;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inline-desc-editor {
+  width: 160px;
 }
 
 .occupied-by {

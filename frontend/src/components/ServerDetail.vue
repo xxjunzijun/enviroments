@@ -1,5 +1,5 @@
 <template>
-  <el-drawer v-model="drawerVisible" :title="`服务器 ${serverIp}`" size="560px" direction="rtl">
+  <el-drawer v-model="drawerVisible" :title="`服务器 ${serverIp}`" size="50%" direction="rtl" class="server-detail-drawer">
 
     <!-- Tabs: 详情 / 文件管理 / 日志 -->
     <el-tabs v-model="activeTab" class="server-tabs">
@@ -330,11 +330,15 @@ function navigateToSeg(idx) {
 function refresh() { loadDir(currentPath.value) }
 
 function onRowClick(row) {
+  if (row.type === 'directory') {
+    loadDir(row.path)
+    return
+  }
   selectedFile.value = row.type === 'file' ? row : null
 }
 function onRowDblClick(row) {
   if (row.type === 'directory') {
-    loadDir(row.path)
+    return
   } else {
     downloadFile(row.path)
   }
@@ -443,6 +447,17 @@ function logClass(log) {
 </script>
 
 <style scoped>
+:global(.server-detail-drawer.el-drawer) {
+  min-width: 720px;
+}
+
+@media (max-width: 900px) {
+  :global(.server-detail-drawer.el-drawer) {
+    width: 92% !important;
+    min-width: 0;
+  }
+}
+
 .path-bar {
   display: flex;
   align-items: center;
