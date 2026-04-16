@@ -4,6 +4,7 @@ import asyncio
 import warnings
 import queue
 import json
+import concurrent.futures
 
 # Suppress paramiko cryptography deprecation warnings
 warnings.filterwarnings("ignore", message="TripleDES has been moved")
@@ -139,39 +140,58 @@ async def websocket_ssh(
 
     try:
         # 4. Drain SSH -> WebSocket events in a task
-        # Non-blocking send strategy: schedule sends as asyncio tasks WITHOUT awaiting.
-        # The key insight: we use create_task() to schedule each send as an
-        # independent task. The pump loop never blocks on a send, so receive_text
-        # always gets CPU time to process incoming user input.
-        # Deadlock scenario solved: even if send_json blocks, the pump loop
-        # continues processing -> receive_text runs -> user input reaches SSH.
+        # Non-blocking send strategy: use run_in_executor with a thread pool.
+        # The pump loop (async) never blocks; it schedules sync send tasks
+        # into a thread pool. The thread doing the actual send will block on
+        # TCP write (if buffer is full) but that doesn't affect the async loop.
+        # The async loop stays free to run receive_text() -> user input ->
+        # SSH -> more queue data -> deadlock broken.
+        pending_futures: set = set()
+        _loop: asyncio.AbstractEventLoop = asyncio.get_running_loop()
+        _executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
+
+        def _sync_send(payload: dict):
+            """Synchronous send running in thread pool — does NOT block the async loop."""
+            try:
+                print(f"[WS SSH] _sync_send[{payload.get('type')}]: encoding + sending", flush=True)
+                text = json.dumps(payload, separators=(",", ":"))
+                # Submit async send to event loop from this thread
+                # asyncio.run_coroutine_threadsafe schedules coroutine on the loop
+                # running in the main thread; the future is returned but we
+                # don't wait on it here (fire-and-forget).
+                asyncio.run_coroutine_threadsafe(websocket.send_text(text), _loop)
+                print(f"[WS SSH] _sync_send[{payload.get('type')}]: submitted OK", flush=True)
+            except Exception as e:
+                print(f"[WS SSH] _sync_send ERROR [{payload.get('type')}]: {type(e).__name__}: {e}", flush=True)
 
         async def pump_ssh_to_ws():
             """Pump messages from SSH session queue -> WebSocket."""
             ws_queue = session.get_queue()
             print(f"[WS SSH] pump started for session {session_id}", flush=True)
 
-            async def do_send_json(payload: dict):
-                """Send JSON without blocking the pump loop."""
-                print(f"[WS SSH] do_send_json START: {payload.get('type')}", flush=True)
+            def schedule_send(payload: dict):
+                """Fire-and-forget: submit sync send to thread pool."""
+                fut = _executor.submit(_sync_send, payload)
+                fut.add_done_callback(lambda f: pending_futures.discard(f) or _check_future(f))
+                pending_futures.add(fut)
+                print(f"[WS SSH] schedule_send: queued {payload.get('type')}, pending={len(pending_futures)}", flush=True)
+
+            def _check_future(f):
                 try:
-                    await asyncio.wait_for(websocket.send_json(payload), timeout=2.0)
-                    print(f"[WS SSH] do_send_json OK: {payload.get('type')}", flush=True)
-                except asyncio.TimeoutError:
-                    print(f"[WS SSH] do_send_json TIMEOUT: {payload.get('type')}", flush=True)
-                except BaseException as e:
-                    print(f"[WS SSH] do_send_json ERROR [{payload.get('type')}]: {type(e).__name__}: {e}", flush=True)
+                    f.result()
+                except Exception as e:
+                    print(f"[WS SSH] future failed: {e}", flush=True)
 
             # Wait for connected signal first
             try:
                 msg_type, data = ws_queue.get(timeout=15)
                 print(f"[WS SSH] pump got msg: type={msg_type}, data={repr(data[:50]) if data else ''}", flush=True)
                 if msg_type == "error":
-                    asyncio.create_task(do_send_json({"type": "error", "data": data}))
+                    schedule_send({"type": "error", "data": data})
                     print(f"[WS SSH] pump: got error, exiting", flush=True)
                     return
                 elif msg_type == "connected":
-                    asyncio.create_task(do_send_json({"type": "connected"}))
+                    schedule_send({"type": "connected"})
                 elif msg_type == "close":
                     print(f"[WS SSH] pump: got close before connected, exiting", flush=True)
                     return
@@ -179,18 +199,18 @@ async def websocket_ssh(
                 print(f"[WS SSH] pump: timeout waiting for connected, exiting", flush=True)
                 return
 
-            # Normal message pump loop
+            # Normal message pump loop — non-blocking sends only
             while True:
                 try:
                     msg_type, data = ws_queue.get(timeout=0.05)
                     print(f"[WS SSH] pump got msg: type={msg_type}, data={repr(data[:50]) if data else ''}", flush=True)
                     if msg_type == "data":
-                        asyncio.create_task(do_send_json({"type": "data", "data": data}))
+                        schedule_send({"type": "data", "data": data})
                     elif msg_type == "connected":
-                        asyncio.create_task(do_send_json({"type": "connected"}))
+                        schedule_send({"type": "connected"})
                     elif msg_type == "error":
                         print(f"[WS SSH] SSH error: {data}", flush=True)
-                        asyncio.create_task(do_send_json({"type": "error", "data": data}))
+                        schedule_send({"type": "error", "data": data})
                     elif msg_type == "close":
                         break
                 except queue.Empty:
