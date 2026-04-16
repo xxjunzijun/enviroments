@@ -226,6 +226,23 @@ async def websocket_ssh(
         pump_task = asyncio.create_task(pump_ssh_to_ws())
 
         # 5. Receive from WebSocket -> SSH
+        # IMPORTANT: session.write() and session.resize() MUST run in a thread
+        # pool. Calling them directly would block the event loop because
+        # channel.send() is a synchronous blocking call. If the event loop
+        # blocks here, the pump task (which also needs the event loop to run
+        # websocket.send_text via asyncio.run_coroutine_threadsafe) cannot
+        # proceed -> deadlock.  ThreadPoolExecutor ensures the blocking
+        # paramiko calls don't stall the asyncio event loop.
+        _write_executor = concurrent.futures.ThreadPoolExecutor(max_workers=4)
+
+        async def async_write(data: str):
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(_write_executor, session.write, data)
+
+        async def async_resize(w: int, h: int):
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(_write_executor, session.resize, w, h)
+
         while True:
             try:
                 raw = await websocket.receive_text()
@@ -234,16 +251,16 @@ async def websocket_ssh(
                     msg = json.loads(raw)
                 except json.JSONDecodeError:
                     # Plain text: treat as terminal input
-                    session.write(raw)
+                    await async_write(raw)
                     continue
 
                 msg_type = msg.get("type")
                 if msg_type == "input":
-                    session.write(msg.get("data", ""))
+                    await async_write(msg.get("data", ""))
                 elif msg_type == "resize":
                     w = msg.get("width", 200)
                     h = msg.get("height", 80)
-                    session.resize(w, h)
+                    await async_resize(w, h)
                 elif msg_type == "ping":
                     await websocket.send_json({"type": "pong"})
             except WebSocketDisconnect:
