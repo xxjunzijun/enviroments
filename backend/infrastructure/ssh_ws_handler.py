@@ -7,6 +7,7 @@ Reference: https://github.com/huashengdun/webssh
 import asyncio
 import json
 import threading
+import time
 import uuid
 import queue
 import warnings
@@ -76,9 +77,12 @@ class SSHChannelSession:
                     self.ws_queue.put(("data", data.decode("utf-8", errors="replace")))
             except Exception as e:
                 etype = type(e).__name__
-                if "timeout" in etype.lower() or "timeout" in str(e).lower():
-                    # Normal timeout — keep waiting
-                    pass
+                # setblocking(0) causes BlockingIOError when no data available.
+                # socket.timeout (settimeout) also raises here. Both mean "no data
+                # right now, keep waiting" — don't break the loop.
+                if etype in ("BlockingIOError", "timeout") or "timeout" in etype.lower():
+                    # No data — sleep briefly to avoid busy-polling
+                    time.sleep(0.01)
                 else:
                     print(f"[SSH reader] exception: {etype}: {e}", flush=True)
                     break
@@ -119,7 +123,7 @@ class SSHChannelSession:
 
         # Handle password change prompt for Linux servers
         self.channel = self.ssh_client.invoke_shell(width=200, height=80)
-        self.channel.settimeout(1.0)  # 1s timeout, non-blocking recv
+        self.channel.setblocking(0)  # non-blocking, rely on select() in reader loop
         print(f"[SSH reader] invoke_shell done, channel={self.channel}", flush=True)
 
         # Drain initial banner output and send to WebSocket via queue
@@ -136,7 +140,8 @@ class SSHChannelSession:
                 else:
                     break
             except Exception as e:
-                if "timeout" in type(e).__name__.lower() or "timeout" in str(e).lower():
+                etype = type(e).__name__
+                if etype in ("BlockingIOError", "timeout") or "timeout" in etype.lower():
                     break
                 else:
                     print(f"[SSH reader] drain exception: {e}", flush=True)
