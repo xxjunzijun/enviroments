@@ -166,3 +166,11 @@ python tests/webssh_smoke.py --help
 ## 仓库
 
 https://github.com/xxjunzijun/enviroments
+
+## 第三方代码与致谢
+
+本项目 Web SSH 后端模块参考并改造了 huashengdun/webssh 项目的部分实现：
+https://github.com/huashengdun/webssh
+
+原项目采用 MIT License。相关代码已按本项目 FastAPI、WebSocket、Paramiko 架构进行适配。更详细的第三方声明见 `THIRD_PARTY_NOTICES.md`。
+
