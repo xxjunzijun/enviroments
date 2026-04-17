@@ -54,7 +54,8 @@ jobs:
               "${PYTHON}" -m pip install --upgrade pip
               "${PYTHON}" -m pip install -r requirements.txt pyinstaller
               "${PYTHON}" -m PyInstaller Enviroments.spec --noconfirm --clean --distpath ../dist --workpath ../build
-              ldd --version | head -n 1
+              ldd --version > /tmp/ldd-version.txt 2>&1
+              head -n 1 /tmp/ldd-version.txt
             '
 
       - name: Package tarball
