@@ -1,4 +1,4 @@
-import json
+﻿import json
 import os
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
@@ -27,6 +27,15 @@ def _write_log(server_id: int, payload: dict):
         f.write(line + "\n")
 
 
+def _update_server_fields(db: Session, server_id: int, values: dict) -> bool:
+    updated = db.query(Server).filter(Server.id == server_id).update(
+        values,
+        synchronize_session=False,
+    )
+    db.commit()
+    return updated == 1
+
+
 @router.get("", response_model=ServerListResponse)
 def list_servers(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     servers = db.query(Server).order_by(Server.ip).all()
@@ -39,12 +48,12 @@ def list_servers(db: Session = Depends(get_db), current_user=Depends(get_current
 
 @router.post("/{server_id}/occupy", response_model=ServerResponse)
 def occupy_server(server_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    """占用服务器（只有当前无占用或本人可占用）"""
+    """鍗犵敤鏈嶅姟鍣紙鍙湁褰撳墠鏃犲崰鐢ㄦ垨鏈汉鍙崰鐢級"""
     server = db.query(Server).filter(Server.id == server_id).first()
     if not server:
         raise HTTPException(status_code=404, detail="Server not found")
     if server.occupied_by and server.occupied_by != current_user.username:
-        raise HTTPException(status_code=409, detail=f"已被 {server.occupied_by} 占用")
+        raise HTTPException(status_code=409, detail=f"宸茶 {server.occupied_by} 鍗犵敤")
     server.occupied_by = current_user.username
     db.commit()
     db.refresh(server)
@@ -53,12 +62,12 @@ def occupy_server(server_id: int, db: Session = Depends(get_db), current_user=De
 
 @router.post("/{server_id}/release", response_model=ServerResponse)
 def release_server(server_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    """释放服务器（只有本人或管理员可释放）"""
+    """閲婃斁鏈嶅姟鍣紙鍙湁鏈汉鎴栫鐞嗗憳鍙噴鏀撅級"""
     server = db.query(Server).filter(Server.id == server_id).first()
     if not server:
         raise HTTPException(status_code=404, detail="Server not found")
     if server.occupied_by and server.occupied_by != current_user.username:
-        raise HTTPException(status_code=403, detail="只能本人或管理员释放")
+        raise HTTPException(status_code=403, detail="鍙兘鏈汉鎴栫鐞嗗憳閲婃斁")
     server.occupied_by = None
     db.commit()
     db.refresh(server)
@@ -165,9 +174,11 @@ def check_status(server_id: int, db: Session = Depends(get_db)):
 
     online = check_online(server.ip, port=server.port)
     was_online = server.is_online
-    server.is_online = online
-    server.online_checked_at = datetime.utcnow()
-    db.commit()
+    if not _update_server_fields(db, server_id, {
+        "is_online": online,
+        "online_checked_at": datetime.utcnow(),
+    }):
+        raise HTTPException(status_code=404, detail="Server not found")
 
     _write_log(server_id, {
         "type": "status_check",
@@ -186,20 +197,20 @@ def check_status(server_id: int, db: Session = Depends(get_db)):
 @router.get("/{server_id}/detail", response_model=ServerDetailResponse)
 def fetch_detail(server_id: int, refresh: bool = False, db: Session = Depends(get_db)):
     """
-    获取服务器详情。
-    - refresh=false（默认）：优先从 cached_info 返回，毫秒级响应
-    - refresh=true：强制 SSH 重新采集（"重新采集"按钮使用）
+    鑾峰彇鏈嶅姟鍣ㄨ鎯呫€?
+    - refresh=false锛堥粯璁わ級锛氫紭鍏堜粠 cached_info 杩斿洖锛屾绉掔骇鍝嶅簲
+    - refresh=true锛氬己鍒?SSH 閲嶆柊閲囬泦锛?閲嶆柊閲囬泦"鎸夐挳浣跨敤锛?
     """
     server = db.query(Server).filter(Server.id == server_id).first()
     if not server:
         raise HTTPException(status_code=404, detail="Server not found")
 
-    # 不强制刷新时，优先返回缓存
+    # 涓嶅己鍒跺埛鏂版椂锛屼紭鍏堣繑鍥炵紦瀛?
     if not refresh and server.cached_info:
         try:
             cached = json.loads(server.cached_info)
             return ServerDetailResponse(
-                id=server.id,
+                id=server_id,
                 ip=server.ip,
                 os_type=cached.get("os_type", server.os_type),
                 os_version=cached.get("os_version"),
@@ -214,15 +225,26 @@ def fetch_detail(server_id: int, refresh: bool = False, db: Session = Depends(ge
                 cached_at=server.cached_at,
             )
         except Exception:
-            pass  # 缓存损坏，降级到 SSH 采集
+            pass  # 缂撳瓨鎹熷潖锛岄檷绾у埌 SSH 閲囬泦
 
-    # SSH 重新采集
+    # SSH 閲嶆柊閲囬泦
+    detail_context = {
+        "ip": server.ip,
+        "username": server.ssh_username,
+        "password": server.ssh_password,
+        "key_file": server.ssh_key_file,
+        "port": server.port,
+        "description": server.description,
+        "detail_note": server.detail_note,
+        "tags": server.tags,
+    }
+
     info: ServerInfo = get_server_info_via_ssh(
-        ip=server.ip,
-        username=server.ssh_username,
-        password=server.ssh_password,
-        key_file=server.ssh_key_file,
-        port=server.port,
+        ip=detail_context["ip"],
+        username=detail_context["username"],
+        password=detail_context["password"],
+        key_file=detail_context["key_file"],
+        port=detail_context["port"],
     )
 
     now = datetime.utcnow()
@@ -247,14 +269,16 @@ def fetch_detail(server_id: int, refresh: bool = False, db: Session = Depends(ge
     }
     _write_log(server.id, snapshot)
 
-    server.cached_info = json.dumps(snapshot, ensure_ascii=False)
-    server.cached_at = now
-    server.is_online = True
-    db.commit()
+    if not _update_server_fields(db, server.id, {
+        "cached_info": json.dumps(snapshot, ensure_ascii=False),
+        "cached_at": now,
+        "is_online": True,
+    }):
+        raise HTTPException(status_code=404, detail="Server not found")
 
     return ServerDetailResponse(
-        id=server.id,
-        ip=server.ip,
+        id=server_id,
+        ip=detail_context["ip"],
         os_type=info.os_type,
         os_version=info.os_version,
         cpu_model=info.cpu_model,
@@ -262,10 +286,10 @@ def fetch_detail(server_id: int, refresh: bool = False, db: Session = Depends(ge
         mem=info.memory_total,
         interfaces=info.interfaces or [],
         is_online=True,
-        description=server.description,
-        detail_note=server.detail_note,
-        tags=server.tags,
-        cached_at=server.cached_at,
+        description=detail_context["description"],
+        detail_note=detail_context["detail_note"],
+        tags=detail_context["tags"],
+        cached_at=now,
     )
 
 

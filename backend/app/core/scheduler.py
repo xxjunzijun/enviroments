@@ -10,6 +10,7 @@ from datetime import datetime
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
+from sqlalchemy.orm.exc import StaleDataError
 
 from app.core.database import SessionLocal
 from app.models.server import Server
@@ -48,12 +49,38 @@ def _read_logs(server_id: int, limit: int = 200) -> list[dict]:
     return result
 
 
+def _update_server_by_id(db, server_id: int, values: dict) -> bool:
+    """Update by primary key without relying on a potentially stale ORM instance."""
+    try:
+        updated = db.query(Server).filter(Server.id == server_id).update(
+            values,
+            synchronize_session=False,
+        )
+        db.commit()
+        return updated == 1
+    except StaleDataError:
+        db.rollback()
+        logger.warning("[Scheduler] Server %s changed before update; skipped", server_id)
+        return False
+    except Exception:
+        db.rollback()
+        raise
+
+
 async def status_check_task(app):
     """Ping all servers, update online status, write JSON log lines."""
     db = SessionLocal()
     try:
-        servers = db.query(Server).all()
+        servers = db.query(
+            Server.id,
+            Server.ip,
+            Server.port,
+            Server.is_online,
+            Server.online_checked_at,
+            Server.status_check_interval,
+        ).all()
         now = datetime.utcnow()
+        checked = 0
         for server in servers:
             # Rate limit: skip if checked recently per interval
             if server.online_checked_at:
@@ -62,18 +89,19 @@ async def status_check_task(app):
                     continue
 
             online = check_online(server.ip, port=server.port)
-            was_online = server.is_online
-            server.is_online = online
-            server.online_checked_at = now
+            _update_server_by_id(db, server.id, {
+                "is_online": online,
+                "online_checked_at": now,
+            })
+            checked += 1
 
             _log_line(server.id, {
                 "type": "status_check",
                 "online": online,
-                "changed": was_online != online,
+                "changed": server.is_online != online,
             })
 
-        db.commit()
-        logger.info(f"[Scheduler] Status check done for {len(servers)} servers")
+        logger.info("[Scheduler] Status check done for %s/%s servers", checked, len(servers))
     except Exception as e:
         logger.error(f"[Scheduler] Status check error: {e}")
         db.rollback()
@@ -85,8 +113,19 @@ async def detail_fetch_task(app):
     """SSH fetch full server info, cache and write JSON log lines."""
     db = SessionLocal()
     try:
-        servers = db.query(Server).all()
+        servers = db.query(
+            Server.id,
+            Server.ip,
+            Server.port,
+            Server.ssh_username,
+            Server.ssh_password,
+            Server.ssh_key_file,
+            Server.is_online,
+            Server.cached_at,
+            Server.detail_fetch_interval,
+        ).all()
         now = datetime.utcnow()
+        fetched = 0
         for server in servers:
             # Rate limit: skip if fetched recently per interval
             if server.cached_at:
@@ -122,13 +161,14 @@ async def detail_fetch_task(app):
                 }
                 _log_line(server.id, snapshot)
 
-                # Update cached snapshot in DB
-                server.cached_info = json.dumps(snapshot, ensure_ascii=False)
-                server.cached_at = now
-                server.is_online = True  # SSH worked = online
+                _update_server_by_id(db, server.id, {
+                    "cached_info": json.dumps(snapshot, ensure_ascii=False),
+                    "cached_at": now,
+                    "is_online": True,
+                })
+                fetched += 1
 
-        db.commit()
-        logger.info(f"[Scheduler] Detail fetch done for {len(servers)} servers")
+        logger.info("[Scheduler] Detail fetch done for %s/%s servers", fetched, len(servers))
     except Exception as e:
         logger.error(f"[Scheduler] Detail fetch error: {e}")
         db.rollback()
