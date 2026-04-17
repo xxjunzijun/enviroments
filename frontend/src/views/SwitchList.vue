@@ -64,7 +64,6 @@
       <el-table-column label="操作" min-width="200" align="center">
         <template #default="{ row }">
           <el-button size="small" type="primary" @click="openDetail(row)">查看详情</el-button>
-          <el-button size="small" @click="openTerminal(row)">Web SSH</el-button>
           <el-button size="small" type="danger" @click="remove(row)">删除</el-button>
         </template>
       </el-table-column>
@@ -253,10 +252,6 @@ function openDetail(row) {
   activeSwitchId.value = row.id
 }
 
-function openTerminal(row) {
-  const label = encodeURIComponent(row.name || row.ip)
-  window.open(`/#/ssh/switch/${row.id}/${label}`, '_blank')
-}
 
 function openEditById(id) {
   const row = switches_data.value.find(s => s.id === id)

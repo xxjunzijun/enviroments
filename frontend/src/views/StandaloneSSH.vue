@@ -5,7 +5,7 @@
       <el-button size="small" @click="goBack">← 返回</el-button>
     </div>
     <WebTerminal
-      v-if="ready"
+      v-if="ready && targetType === 'server'"
       class="ssh-terminal"
       :target-id="targetId"
       :target-type="targetType"
@@ -17,7 +17,7 @@
       :username="credentials.username"
       :password="credentials.password"
     />
-    <div v-else class="loading">加载中…</div>
+    <div v-else class="loading">{{ targetType === 'server' ? '加载中…' : '交换机 Web SSH 已停用' }}</div>
   </div>
 </template>
 
@@ -49,9 +49,12 @@ async function fetchCredentials() {
   if (!token) return
 
   const apiBase = `${window.location.protocol}//${window.location.host}`
-  const endpoint = targetType === 'switch'
-    ? `/api/v1/switches/${targetId}`
-    : `/api/v1/servers/${targetId}`
+  if (targetType !== 'server') {
+    ready.value = false
+    return
+  }
+
+  const endpoint = `/api/v1/servers/${targetId}`
 
   try {
     const res = await fetch(`${apiBase}${endpoint}`, {
@@ -59,20 +62,11 @@ async function fetchCredentials() {
     })
     if (!res.ok) return
     const data = await res.json()
-    if (targetType === 'switch') {
-      credentials.value = {
-        host: data.ip,
-        port: data.port || 22,
-        username: data.username,
-        password: data.password,
-      }
-    } else {
-      credentials.value = {
-        host: data.ip,
-        port: data.port || 22,
-        username: data.ssh_username,
-        password: data.ssh_password,
-      }
+    credentials.value = {
+      host: data.ip,
+      port: data.port || 22,
+      username: data.ssh_username,
+      password: data.ssh_password,
     }
   } catch (e) {
     console.error('Failed to fetch credentials:', e)
