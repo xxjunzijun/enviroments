@@ -116,7 +116,7 @@ dist\Enviroments\Enviroments.exe
 
 详细离线运行说明见 `docs/README_DEPLOY_LINUX.md`。
 
-注意：GitHub 使用 Ubuntu 22.04 构建 Linux x64 包，并使用 ubuntu-22.04-arm 构建 Linux arm64 包。非常老的离线系统可能存在 glibc 兼容问题，这种情况下需要在更接近目标系统的 Linux 环境中构建。
+注意：GitHub 会在 manylinux_2_34 容器中执行 PyInstaller，因此 Linux 离线包的 glibc 基线为 2.34；x64 使用 `quay.io/pypa/manylinux_2_34_x86_64`，arm64 使用 `quay.io/pypa/manylinux_2_34_aarch64`。低于 glibc 2.34 的离线系统仍需在更老的构建环境中单独构建。
 
 ### Linux/macOS 本地打包
 
@@ -142,9 +142,9 @@ Windows EXE 流程：
 
 Linux tar.gz 流程：
 
-- 使用 Ubuntu 22.04 构建 x64，并使用 ubuntu-22.04-arm 构建 arm64。
+- 使用 Ubuntu runner 负责前端构建，并在 manylinux_2_34 容器中执行 PyInstaller。
 - 安装 Python 3.11、Node.js 20、pnpm 10。
-- 构建前端并使用 PyInstaller 打包后端。
+- x64 产物基于 `quay.io/pypa/manylinux_2_34_x86_64`，arm64 产物基于 `quay.io/pypa/manylinux_2_34_aarch64`。
 - 将 `dist/Enviroments/` 和 `docs/README_DEPLOY_LINUX.md` 打成 `Enviroments-linux-x64-*.tar.gz` 或 `Enviroments-linux-arm64-*.tar.gz`。
 
 ## 常用检查

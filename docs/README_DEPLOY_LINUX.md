@@ -20,7 +20,7 @@ http://<server-ip>:8000
 ## Notes
 
 - Use the x64 package on Linux x86_64 and the arm64 package on Linux ARM64.
-- Build on GitHub uses Ubuntu 22.04 for x64 and ubuntu-22.04-arm for arm64. Very old offline systems may fail because of glibc compatibility. If that happens, build on a Linux version closer to the target environment.
+- PyInstaller runs inside manylinux_2_34 containers, so the Linux package targets glibc 2.34. x64 uses `quay.io/pypa/manylinux_2_34_x86_64`; arm64 uses `quay.io/pypa/manylinux_2_34_aarch64`. Systems older than glibc 2.34 may still require a custom build on an older base.
 - No Node.js, pnpm, Python, or pip is required on the offline machine.
 - The runtime directory must be writable because SQLite data and logs are generated at runtime.
 - SSH, SFTP, and Web SSH require network access from this machine to managed servers.
