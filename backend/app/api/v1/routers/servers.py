@@ -1,4 +1,4 @@
-﻿import json
+import json
 import os
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
@@ -48,12 +48,10 @@ def list_servers(db: Session = Depends(get_db), current_user=Depends(get_current
 
 @router.post("/{server_id}/occupy", response_model=ServerResponse)
 def occupy_server(server_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
-    """鍗犵敤鏈嶅姟鍣紙鍙湁褰撳墠鏃犲崰鐢ㄦ垨鏈汉鍙崰鐢級"""
+    """占用服务器；如果已被他人占用，则由当前用户强制接管。"""
     server = db.query(Server).filter(Server.id == server_id).first()
     if not server:
         raise HTTPException(status_code=404, detail="Server not found")
-    if server.occupied_by and server.occupied_by != current_user.username:
-        raise HTTPException(status_code=409, detail=f"宸茶 {server.occupied_by} 鍗犵敤")
     server.occupied_by = current_user.username
     db.commit()
     db.refresh(server)

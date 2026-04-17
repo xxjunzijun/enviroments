@@ -104,11 +104,21 @@
           </template>
         </template>
       </el-table-column>
-      <el-table-column label="使用人" min-width="120" align="center">
+      <el-table-column label="使用人" min-width="150" align="center">
         <template #default="{ row }">
-          <span v-if="row.occupied_by" class="occupied-by" @click="handleRelease(row)">
-            {{ row.occupied_by }}
-          </span>
+          <div v-if="row.occupied_by" class="occupy-cell">
+            <span class="occupied-by" :title="`当前占用人：${row.occupied_by}`">{{ row.occupied_by }}</span>
+            <el-link
+              v-if="row.occupied_by === currentUsername"
+              type="warning"
+              @click="handleRelease(row)"
+            >释放</el-link>
+            <el-link
+              v-else
+              type="danger"
+              @click="handleOccupy(row)"
+            >强制占用</el-link>
+          </div>
           <el-link v-else type="primary" @click="handleOccupy(row)">占用</el-link>
         </template>
       </el-table-column>
@@ -219,6 +229,7 @@ const saving = ref(false)
 const activeServerId = ref(null)
 const searchQuery = ref('')
 const showFavoritesOnly = ref(false)
+const currentUsername = localStorage.getItem('username') || ''
 
 const filteredServers = computed(() => {
   const source = showFavoritesOnly.value
@@ -445,12 +456,20 @@ async function checkAllStatus() {
 
 async function handleOccupy(row) {
   try {
+    const previousUser = row.occupied_by
+    if (previousUser && previousUser !== currentUsername) {
+      await ElMessageBox.confirm(
+        `服务器 "${row.ip}" 当前由 ${previousUser} 占用，确定要强制占用吗？`,
+        '确认强制占用',
+        { type: 'warning', confirmButtonText: '强制占用', cancelButtonText: '取消' }
+      )
+    }
     const updated = await serverApi.occupy(row.id)
     const idx = servers.value.findIndex(s => s.id === row.id)
     if (idx !== -1) servers.value[idx] = { ...servers.value[idx], occupied_by: updated.occupied_by }
-    ElMessage.success(`已占用 ${row.ip}`)
+    ElMessage.success(previousUser && previousUser !== currentUsername ? `已从 ${previousUser} 强制占用 ${row.ip}` : `已占用 ${row.ip}`)
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || '占用失败')
+    if (e !== 'cancel') ElMessage.error(e.response?.data?.detail || '占用失败')
   }
 }
 
@@ -571,10 +590,15 @@ onMounted(loadServers)
   width: 160px;
 }
 
+.occupy-cell {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
 .occupied-by {
   color: #e6a23c;
   font-weight: 500;
-  cursor: pointer;
 }
-.occupied-by:hover { text-decoration: underline; }
 </style>
