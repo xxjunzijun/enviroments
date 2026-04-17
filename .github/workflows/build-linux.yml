@@ -77,20 +77,20 @@ jobs:
           if [ -f docs/README_DEPLOY_LINUX.md ]; then
             cp docs/README_DEPLOY_LINUX.md "${package_dir}/"
           else
-            cat > "${package_dir}/README_DEPLOY_LINUX.md" <<'DEPLOY_DOC'
-# Linux Offline Deployment
-
-This package was built by GitHub Actions. It contains the backend executable and bundled frontend static files.
-
-## Run
-
-```bash
-chmod +x Enviroments
-./Enviroments
-```
-
-The service listens on `0.0.0.0:8000` by default.
-DEPLOY_DOC
+            printf '%s\n' \
+              '# Linux Offline Deployment' \
+              '' \
+              'This package was built by GitHub Actions. It contains the backend executable and bundled frontend static files.' \
+              '' \
+              '## Run' \
+              '' \
+              '```bash' \
+              'chmod +x Enviroments' \
+              './Enviroments' \
+              '```' \
+              '' \
+              'The service listens on `0.0.0.0:8000` by default.' \
+              > "${package_dir}/README_DEPLOY_LINUX.md"
           fi
 
           tar -czf "release/${package_name}.tar.gz" -C release "${package_name}"
