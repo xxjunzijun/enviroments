@@ -1,4 +1,4 @@
-name: Build Linux Tarballs
+name: Build Linux ARM64 Tarball
 
 on:
   workflow_dispatch:
@@ -10,19 +10,9 @@ on:
 
 jobs:
   build:
-    name: Build ${{ matrix.package_arch }}
-    runs-on: ${{ matrix.runner }}
+    name: Build linux-arm64
+    runs-on: ubuntu-22.04-arm
     timeout-minutes: 50
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - runner: ubuntu-22.04
-            package_arch: linux-x64
-            manylinux_image: quay.io/pypa/manylinux_2_34_x86_64
-          - runner: ubuntu-22.04-arm
-            package_arch: linux-arm64
-            manylinux_image: quay.io/pypa/manylinux_2_34_aarch64
 
     steps:
       - name: Checkout code
@@ -54,10 +44,13 @@ jobs:
           docker run --rm \
             -v "${GITHUB_WORKSPACE}:/io" \
             -w /io/backend \
-            "${{ matrix.manylinux_image }}" \
+            quay.io/pypa/manylinux_2_34_aarch64 \
             /bin/bash -lc '
               set -euo pipefail
-              PYTHON=/opt/python/cp311-cp311/bin/python
+              dnf install -y python3 python3-pip python3-devel
+              PYTHON=/usr/bin/python3
+              "${PYTHON}" -c "import sys, sysconfig; print(sys.version); print(\"Py_ENABLE_SHARED=\", sysconfig.get_config_var(\"Py_ENABLE_SHARED\"))"
+
               "${PYTHON}" -m pip install --upgrade pip
               "${PYTHON}" -m pip install -r requirements.txt pyinstaller
               "${PYTHON}" -m PyInstaller Enviroments.spec --noconfirm --clean --distpath ../dist --workpath ../build
@@ -68,7 +61,7 @@ jobs:
         shell: bash
         run: |
           ref_name="${{ inputs.tag || github.run_number }}"
-          package_name="Enviroments-${{ matrix.package_arch }}-${ref_name}"
+          package_name="Enviroments-linux-arm64-${ref_name}"
           package_dir="release/${package_name}"
 
           mkdir -p "${package_dir}"
@@ -98,6 +91,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Enviroments-${{ matrix.package_arch }}-${{ github.run_number }}
-          path: release/Enviroments-${{ matrix.package_arch }}-*.tar.gz
+          name: Enviroments-linux-arm64-${{ github.run_number }}
+          path: release/Enviroments-linux-arm64-*.tar.gz
           retention-days: 14
+

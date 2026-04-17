@@ -104,19 +104,19 @@ dist\Enviroments\Enviroments.exe
 
 ### GitHub Actions Linux 离线包
 
-仓库提供 `.github/workflows/build-linux.yml`，可以让 GitHub 在 Linux x64 环境中构建离线部署包。
+仓库提供 `.github/workflows/build-linux.yml`，可以让 GitHub 在 Linux ARM64 环境中构建离线部署包。
 
 使用方式：
 
 - 打开 GitHub 仓库的 Actions 页面。
-- 选择 `Build Linux Tarballs`。
+- 选择 `Build Linux ARM64 Tarball`。
 - 点击 `Run workflow`，可选填写 tag，例如 `v1.0.0`。
-- 构建完成后下载 artifact：`Enviroments-linux-x64-*.tar.gz` 或 `Enviroments-linux-arm64-*.tar.gz`。
+- 构建完成后下载 artifact：`Enviroments-linux-arm64-*.tar.gz`。
 - 将 tar.gz 拷贝到离线 Linux，解压后执行 `./Enviroments`。
 
 详细离线运行说明见 `docs/README_DEPLOY_LINUX.md`。
 
-注意：GitHub 会在 manylinux_2_34 容器中执行 PyInstaller，因此 Linux 离线包的 glibc 基线为 2.34；x64 使用 `quay.io/pypa/manylinux_2_34_x86_64`，arm64 使用 `quay.io/pypa/manylinux_2_34_aarch64`。低于 glibc 2.34 的离线系统仍需在更老的构建环境中单独构建。
+注意：GitHub 会在 `quay.io/pypa/manylinux_2_34_aarch64` 容器中执行 PyInstaller，因此 ARM64 Linux 离线包的 glibc 基线为 2.34。低于 glibc 2.34 的离线系统仍需在更老的构建环境中单独构建。
 
 ### Linux/macOS 本地打包
 
@@ -142,10 +142,10 @@ Windows EXE 流程：
 
 Linux tar.gz 流程：
 
-- 使用 Ubuntu runner 负责前端构建，并在 manylinux_2_34 容器中执行 PyInstaller。
-- 安装 Python 3.11、Node.js 20、pnpm 10。
-- x64 产物基于 `quay.io/pypa/manylinux_2_34_x86_64`，arm64 产物基于 `quay.io/pypa/manylinux_2_34_aarch64`。
-- 将 `dist/Enviroments/` 和 `docs/README_DEPLOY_LINUX.md` 打成 `Enviroments-linux-x64-*.tar.gz` 或 `Enviroments-linux-arm64-*.tar.gz`。
+- 使用 `ubuntu-22.04-arm` runner 负责前端构建，并在 `quay.io/pypa/manylinux_2_34_aarch64` 容器中执行 PyInstaller。
+- 安装 Node.js 20、pnpm 10；后端打包容器内使用系统 Python 和 `python3-devel`，保证 PyInstaller 能找到 shared libpython。
+- 产物基于 `quay.io/pypa/manylinux_2_34_aarch64`。
+- 将 `dist/Enviroments/` 和 `docs/README_DEPLOY_LINUX.md` 打成 `Enviroments-linux-arm64-*.tar.gz`。
 
 ## 常用检查
 
