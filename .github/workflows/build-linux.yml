@@ -1,17 +1,26 @@
-﻿name: Build Linux x64 Tarball
+name: Build Linux Tarballs
 
 on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Git tag to build (e.g. v1.0.0)'
+        description: 'Git tag or branch to build (e.g. v1.0.0)'
         required: false
         type: string
 
 jobs:
   build:
-    runs-on: ubuntu-22.04
-    timeout-minutes: 30
+    name: Build ${{ matrix.package_arch }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-22.04
+            package_arch: linux-x64
+          - runner: ubuntu-22.04-arm
+            package_arch: linux-arm64
 
     steps:
       - name: Checkout code
@@ -38,9 +47,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/pip
-          key: pip-${{ runner.os }}-${{ hashFiles('backend/requirements.txt') }}
+          key: pip-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('backend/requirements.txt') }}
           restore-keys: |
-            pip-${{ runner.os }}-
+            pip-${{ runner.os }}-${{ runner.arch }}-
 
       - name: Install frontend deps
         working-directory: frontend
@@ -60,15 +69,38 @@ jobs:
       - name: Package tarball
         shell: bash
         run: |
-          package_name="Enviroments-linux-x64-${{ inputs.tag || github.run_number }}"
-          mkdir -p release
-          cp -r dist/Enviroments "release/${package_name}"
-          cp docs/README_DEPLOY_LINUX.md "release/${package_name}/"
+          ref_name="${{ inputs.tag || github.run_number }}"
+          package_name="Enviroments-${{ matrix.package_arch }}-${ref_name}"
+          package_dir="release/${package_name}"
+
+          mkdir -p "${package_dir}"
+          cp -r dist/Enviroments/. "${package_dir}/"
+
+          if [ -f docs/README_DEPLOY_LINUX.md ]; then
+            cp docs/README_DEPLOY_LINUX.md "${package_dir}/"
+          else
+            cat > "${package_dir}/README_DEPLOY_LINUX.md" <<'DEPLOY_DOC'
+          # Linux Offline Deployment
+
+          This package was built by GitHub Actions. It contains the backend executable and bundled frontend static files.
+
+          ## Run
+
+          ```bash
+          chmod +x Enviroments
+          ./Enviroments
+          ```
+
+          The service listens on `0.0.0.0:8000` by default.
+          DEPLOY_DOC
+          fi
+
           tar -czf "release/${package_name}.tar.gz" -C release "${package_name}"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Enviroments-linux-x64-${{ github.run_number }}
-          path: release/Enviroments-linux-x64-*.tar.gz
+          name: Enviroments-${{ matrix.package_arch }}-${{ github.run_number }}
+          path: release/Enviroments-${{ matrix.package_arch }}-*.tar.gz
           retention-days: 14
+

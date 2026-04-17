@@ -109,14 +109,14 @@ dist\Enviroments\Enviroments.exe
 使用方式：
 
 - 打开 GitHub 仓库的 Actions 页面。
-- 选择 `Build Linux x64 Tarball`。
+- 选择 `Build Linux Tarballs`。
 - 点击 `Run workflow`，可选填写 tag，例如 `v1.0.0`。
-- 构建完成后下载 artifact：`Enviroments-linux-x64-*.tar.gz`。
+- 构建完成后下载 artifact：`Enviroments-linux-x64-*.tar.gz` 或 `Enviroments-linux-arm64-*.tar.gz`。
 - 将 tar.gz 拷贝到离线 Linux，解压后执行 `./Enviroments`。
 
 详细离线运行说明见 `docs/README_DEPLOY_LINUX.md`。
 
-注意：GitHub 使用 Ubuntu 22.04 构建 Linux x64 包。非常老的离线系统可能存在 glibc 兼容问题，这种情况下需要在更接近目标系统的 Linux 环境中构建。
+注意：GitHub 使用 Ubuntu 22.04 构建 Linux x64 包，并使用 ubuntu-22.04-arm 构建 Linux arm64 包。非常老的离线系统可能存在 glibc 兼容问题，这种情况下需要在更接近目标系统的 Linux 环境中构建。
 
 ### Linux/macOS 本地打包
 
@@ -142,10 +142,10 @@ Windows EXE 流程：
 
 Linux tar.gz 流程：
 
-- 使用 Ubuntu 22.04。
+- 使用 Ubuntu 22.04 构建 x64，并使用 ubuntu-22.04-arm 构建 arm64。
 - 安装 Python 3.11、Node.js 20、pnpm 10。
 - 构建前端并使用 PyInstaller 打包后端。
-- 将 `dist/Enviroments/` 和 `docs/README_DEPLOY_LINUX.md` 打成 `Enviroments-linux-x64-*.tar.gz`。
+- 将 `dist/Enviroments/` 和 `docs/README_DEPLOY_LINUX.md` 打成 `Enviroments-linux-x64-*.tar.gz` 或 `Enviroments-linux-arm64-*.tar.gz`。
 
 ## 常用检查
 
