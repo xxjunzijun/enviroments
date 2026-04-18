@@ -1,0 +1,97 @@
+name: Build Linux x86_64 Tarball
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Git tag or branch to build (e.g. v1.0.0)'
+        required: false
+        type: string
+
+jobs:
+  build:
+    name: Build linux-x86_64
+    runs-on: ubuntu-22.04
+    timeout-minutes: 50
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install frontend deps
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Build frontend
+        working-directory: frontend
+        run: pnpm run build
+
+      - name: Build with PyInstaller on glibc 2.34
+        shell: bash
+        run: |
+          docker run --rm \
+            -v "${GITHUB_WORKSPACE}:/io" \
+            -w /io/backend \
+            quay.io/pypa/manylinux_2_34_x86_64 \
+            /bin/bash -lc '
+              set -euo pipefail
+              dnf install -y python3 python3-pip python3-devel
+              PYTHON=/usr/bin/python3
+              "${PYTHON}" -c "import sys, sysconfig; print(sys.version); print(\"Py_ENABLE_SHARED=\", sysconfig.get_config_var(\"Py_ENABLE_SHARED\"))"
+
+              "${PYTHON}" -m pip install --upgrade pip
+              "${PYTHON}" -m pip install -r requirements.txt pyinstaller
+              "${PYTHON}" -m PyInstaller Enviroments.spec --noconfirm --clean --distpath ../dist --workpath ../build
+              ldd --version > /tmp/ldd-version.txt 2>&1
+              head -n 1 /tmp/ldd-version.txt
+            '
+
+      - name: Package tarball
+        shell: bash
+        run: |
+          ref_name="${{ inputs.tag || github.run_number }}"
+          package_name="Enviroments-linux-x86_64-${ref_name}"
+          package_dir="release/${package_name}"
+
+          mkdir -p "${package_dir}"
+          cp -r dist/Enviroments/. "${package_dir}/"
+
+          if [ -f docs/README_DEPLOY_LINUX.md ]; then
+            cp docs/README_DEPLOY_LINUX.md "${package_dir}/"
+          else
+            printf '%s\n' \
+              '# Linux Offline Deployment' \
+              '' \
+              'This package was built by GitHub Actions. It contains the backend executable and bundled frontend static files.' \
+              '' \
+              '## Run' \
+              '' \
+              '```bash' \
+              'chmod +x Enviroments' \
+              './Enviroments' \
+              '```' \
+              '' \
+              'The service listens on `0.0.0.0:8000` by default.' \
+              > "${package_dir}/README_DEPLOY_LINUX.md"
+          fi
+
+          tar -czf "release/${package_name}.tar.gz" -C release "${package_name}"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Enviroments-linux-x86_64-${{ github.run_number }}
+          path: release/Enviroments-linux-x86_64-*.tar.gz
+          retention-days: 14
