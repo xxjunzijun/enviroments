@@ -1,10 +1,10 @@
 import json
-import os
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.auth import get_current_user
+from app.core.audit_log import write_server_log
 from app.models.server import Server
 from app.models.server_favorite import ServerFavorite
 from app.api.v1.schemas import (
@@ -15,16 +15,37 @@ from infrastructure.ssh_client import get_server_info_via_ssh, check_online, Ser
 
 router = APIRouter(prefix="/servers", tags=["servers"], dependencies=[Depends(get_current_user)])
 
-from app.core.scheduler import LOG_DIR as _LOG_DIR
+
+SENSITIVE_FIELDS = {"ssh_password", "bmc_password", "ssh_key_file"}
 
 
-def _write_log(server_id: int, payload: dict):
-    os.makedirs(_LOG_DIR, exist_ok=True)
-    payload = dict(payload)
-    payload["time"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-    line = json.dumps(payload, ensure_ascii=False)
-    with open(os.path.join(_LOG_DIR, f"{server_id}.log"), "a", encoding="utf-8") as f:
-        f.write(line + "\n")
+def _actor_name(current_user) -> str:
+    return getattr(current_user, "username", None) or getattr(current_user, "email", None) or str(getattr(current_user, "id", "unknown"))
+
+
+def _audit_value(field: str, value):
+    if field in SENSITIVE_FIELDS:
+        return "<set>" if value else None
+    return value
+
+
+def _server_snapshot(server: Server) -> dict:
+    return {
+        "server_id": server.id,
+        "ip": server.ip,
+        "port": server.port,
+        "os_type": server.os_type,
+        "ssh_username": server.ssh_username,
+        "has_ssh_password": bool(server.ssh_password),
+        "has_ssh_key_file": bool(server.ssh_key_file),
+        "description": server.description,
+        "detail_note": server.detail_note,
+        "tags": server.tags,
+        "bmc_ip": server.bmc_ip,
+        "bmc_username": server.bmc_username,
+        "has_bmc_password": bool(server.bmc_password),
+        "occupied_by": server.occupied_by,
+    }
 
 
 def _update_server_fields(db: Session, server_id: int, values: dict) -> bool:
@@ -52,9 +73,22 @@ def occupy_server(server_id: int, db: Session = Depends(get_db), current_user=De
     server = db.query(Server).filter(Server.id == server_id).first()
     if not server:
         raise HTTPException(status_code=404, detail="Server not found")
+    previous = server.occupied_by
     server.occupied_by = current_user.username
     db.commit()
     db.refresh(server)
+    write_server_log(server.ip, {
+        "type": "server_update",
+        "action": "occupy",
+        "actor": _actor_name(current_user),
+        "server_id": server.id,
+        "changes": {
+            "occupied_by": {
+                "old": previous,
+                "new": server.occupied_by,
+            },
+        },
+    })
     return _to_response(server)
 
 
@@ -66,9 +100,22 @@ def release_server(server_id: int, db: Session = Depends(get_db), current_user=D
         raise HTTPException(status_code=404, detail="Server not found")
     if server.occupied_by and server.occupied_by != current_user.username:
         raise HTTPException(status_code=403, detail="鍙兘鏈汉鎴栫鐞嗗憳閲婃斁")
+    previous = server.occupied_by
     server.occupied_by = None
     db.commit()
     db.refresh(server)
+    write_server_log(server.ip, {
+        "type": "server_update",
+        "action": "release",
+        "actor": _actor_name(current_user),
+        "server_id": server.id,
+        "changes": {
+            "occupied_by": {
+                "old": previous,
+                "new": None,
+            },
+        },
+    })
     return _to_response(server)
 
 
@@ -115,7 +162,7 @@ def unfavorite_server(server_id: int, db: Session = Depends(get_db), current_use
 
 
 @router.post("", response_model=ServerResponse, status_code=201)
-def create_server(data: ServerCreate, db: Session = Depends(get_db)):
+def create_server(data: ServerCreate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     existing = db.query(Server).filter(Server.ip == data.ip).first()
     if existing:
         raise HTTPException(status_code=400, detail=f"IP {data.ip} already registered")
@@ -137,31 +184,67 @@ def create_server(data: ServerCreate, db: Session = Depends(get_db)):
     db.add(server)
     db.commit()
     db.refresh(server)
+    write_server_log(server.ip, {
+        "type": "server_create",
+        "action": "create",
+        "actor": _actor_name(current_user),
+        "server": _server_snapshot(server),
+    })
     return _to_response(server)
 
 
 @router.put("/{server_id}", response_model=ServerResponse)
-def update_server(server_id: int, data: ServerUpdate, db: Session = Depends(get_db)):
+def update_server(server_id: int, data: ServerUpdate, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     server = db.query(Server).filter(Server.id == server_id).first()
     if not server:
         raise HTTPException(status_code=404, detail="Server not found")
 
-    for field, value in data.model_dump(exclude_unset=True).items():
+    old_ip = server.ip
+    changes = {}
+    updates = data.model_dump(exclude_unset=True)
+    for field, value in updates.items():
+        old_value = getattr(server, field)
+        if old_value != value:
+            changes[field] = {
+                "old": _audit_value(field, old_value),
+                "new": _audit_value(field, value),
+            }
         setattr(server, field, value)
 
     db.commit()
     db.refresh(server)
+    if changes:
+        payload = {
+            "type": "server_update",
+            "action": "update",
+            "actor": _actor_name(current_user),
+            "server_id": server.id,
+            "changes": changes,
+        }
+        write_server_log(old_ip, payload)
+        if server.ip != old_ip:
+            moved_payload = dict(payload)
+            moved_payload["moved_from_ip"] = old_ip
+            write_server_log(server.ip, moved_payload)
     return _to_response(server)
 
 
 @router.delete("/{server_id}", status_code=204)
-def delete_server(server_id: int, db: Session = Depends(get_db)):
+def delete_server(server_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     server = db.query(Server).filter(Server.id == server_id).first()
     if not server:
         raise HTTPException(status_code=404, detail="Server not found")
+    log_ip = server.ip
+    snapshot = _server_snapshot(server)
     db.query(ServerFavorite).filter(ServerFavorite.server_id == server_id).delete()
     db.delete(server)
     db.commit()
+    write_server_log(log_ip, {
+        "type": "server_delete",
+        "action": "delete",
+        "actor": _actor_name(current_user),
+        "server": snapshot,
+    })
 
 
 @router.get("/{server_id}/status", response_model=StatusCheckResponse)
@@ -178,7 +261,7 @@ def check_status(server_id: int, db: Session = Depends(get_db)):
     }):
         raise HTTPException(status_code=404, detail="Server not found")
 
-    _write_log(server_id, {
+    write_server_log(server.ip, {
         "type": "status_check",
         "online": online,
         "changed": was_online != online,
@@ -247,7 +330,7 @@ def fetch_detail(server_id: int, refresh: bool = False, db: Session = Depends(ge
 
     now = datetime.utcnow()
     if info.error:
-        _write_log(server.id, {
+        write_server_log(detail_context["ip"], {
             "type": "detail_fetch",
             "online": False,
             "error": info.error,
@@ -265,7 +348,7 @@ def fetch_detail(server_id: int, refresh: bool = False, db: Session = Depends(ge
         "interfaces": info.interfaces or [],
         "hostname": info.hostname,
     }
-    _write_log(server.id, snapshot)
+    write_server_log(detail_context["ip"], snapshot)
 
     if not _update_server_fields(db, server.id, {
         "cached_info": json.dumps(snapshot, ensure_ascii=False),

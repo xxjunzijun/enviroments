@@ -20,6 +20,11 @@
     <el-table :data="filteredSwitches" stripe border v-loading="loading" style="width: 100%; table-layout: fixed; overflow-x: auto">
       <el-table-column prop="name" label="名称" min-width="140" show-overflow-tooltip />
       <el-table-column prop="ip" label="IP 地址" min-width="160" />
+      <el-table-column prop="board_type" label="交换机型号" min-width="180" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ row.board_type || '—' }}
+        </template>
+      </el-table-column>
       <el-table-column prop="port" label="端口" min-width="80" align="center" />
       <el-table-column prop="tags" label="标签" min-width="160">
         <template #default="{ row }">

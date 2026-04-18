@@ -137,13 +137,26 @@
           <div v-else class="log-list">
             <div v-for="(log, i) in logs" :key="i" class="log-line" :class="logClass(log)">
               <span class="log-time">{{ log.time || '—' }}</span>
-              <span class="log-type">{{ log.type === 'status_check' ? '状态' : '详情' }}</span>
+              <span class="log-type">{{ logTypeLabel(log) }}</span>
               <span class="log-status" :class="log.online ? 'online' : 'offline'">
                 {{ log.online === true ? '在线' : log.online === false ? '离线' : '—' }}
               </span>
+              <span v-if="log.actor" class="log-info">用户 {{ log.actor }}</span>
+              <span v-if="logChangeSummary(log)" class="log-info">{{ logChangeSummary(log) }}</span>
               <span v-if="log.cpu" class="log-info">CPU {{ log.cpu }}核</span>
               <span v-if="log.mem" class="log-info">内存 {{ log.mem }}MB</span>
               <span v-if="log.os_version" class="log-info">{{ log.os_version }}</span>
+              <div v-if="logInterfaces(log).length" class="log-interfaces">
+                <div class="log-interfaces-title">网卡详情</div>
+                <div v-for="(item, idx) in logInterfaces(log)" :key="idx" class="log-interface-item">
+                  <span class="iface-name">{{ item.name || 'unknown' }}</span>
+                  <span v-if="item.ip">IP {{ item.ip }}</span>
+                  <span v-if="item.mac">MAC {{ item.mac }}</span>
+                  <span v-if="item.speed">速率 {{ item.speed }}</span>
+                  <span v-if="item.pci_addr">PCI {{ item.pci_addr }}</span>
+                  <span v-if="item.pci_desc">{{ item.pci_desc }}</span>
+                </div>
+              </div>
               <span v-if="log.error" class="log-error">{{ log.error }}</span>
             </div>
           </div>
@@ -480,6 +493,44 @@ function logClass(log) {
   if (log.online === false) return 'log-offline-row'
   return ''
 }
+
+function logTypeLabel(log) {
+  if (log.type === 'status_check') return '状态'
+  if (log.type === 'detail_fetch') return '详情'
+  if (log.type === 'server_create') return '创建'
+  if (log.type === 'server_delete') return '删除'
+  if (log.action === 'occupy') return '占用'
+  if (log.action === 'release') return '释放'
+  if (log.type === 'server_update') return '修改'
+  return log.type || '日志'
+}
+
+const logFieldLabels = {
+  ip: 'IP',
+  port: '端口',
+  os_type: '系统',
+  ssh_username: 'SSH账号',
+  ssh_password: 'SSH密码',
+  ssh_key_file: 'SSH密钥',
+  description: '备注',
+  detail_note: '详情记录',
+  tags: '标签',
+  bmc_ip: 'BMC IP',
+  bmc_username: 'BMC账号',
+  bmc_password: 'BMC密码',
+  occupied_by: '占用人',
+}
+
+function logChangeSummary(log) {
+  if (!log.changes) return ''
+  const fields = Object.keys(log.changes)
+  if (!fields.length) return ''
+  return `修改 ${fields.map((field) => logFieldLabels[field] || field).join('、')}`
+}
+
+function logInterfaces(log) {
+  return Array.isArray(log.interfaces) ? log.interfaces : []
+}
 </script>
 
 <style scoped>
@@ -566,4 +617,29 @@ function logClass(log) {
 .log-status.offline { color: #f56c6c; }
 .log-info { color: #666; }
 .log-error { color: #f56c6c; }
+.log-interfaces {
+  width: 100%;
+  margin-top: 4px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  color: #4b5563;
+  line-height: 1.7;
+}
+.log-interfaces-title {
+  margin-bottom: 4px;
+  color: #303133;
+  font-weight: 600;
+}
+.log-interface-item {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+}
+.iface-name {
+  min-width: 90px;
+  color: #2563eb;
+  font-weight: 600;
+}
 </style>

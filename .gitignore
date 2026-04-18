@@ -9,7 +9,7 @@ dist/
 .venv/
 .vscode/
 .idea/
-core
+/core
 *.log
 backend/log/
 backend/app/api/log/

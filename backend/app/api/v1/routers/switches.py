@@ -13,7 +13,7 @@ from app.api.v1.schemas import (
     SwitchDetailResponse, SwitchStatusResponse,
 )
 from infrastructure.ssh_client import get_switch_info_via_ssh, check_online, SwitchInfo
-from app.core.scheduler import LOG_DIR as _LOG_DIR
+from app.core.audit_log import LOG_DIR as _LOG_DIR
 
 router = APIRouter(prefix="/switches", tags=["switches"], dependencies=[Depends(get_current_user)])
 
@@ -228,10 +228,19 @@ def set_switch_servers(switch_id: int, data: ServerIdsRequest, db: Session = Dep
 
 
 def _to_response(switch: Switch) -> SwitchResponse:
+    board_type = None
+    if switch.cached_info:
+        try:
+            cached = json.loads(switch.cached_info)
+            board_type = cached.get("board_type")
+        except Exception:
+            pass
+
     return SwitchResponse(
         id=switch.id,
         name=switch.name,
         ip=switch.ip,
+        board_type=board_type,
         port=switch.port,
         username=switch.username,
         password=switch.password,

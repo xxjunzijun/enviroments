@@ -1,9 +1,5 @@
-"""
-Background scheduler for periodic server status and detail checks.
-Writes JSON-line logs to backend/log/{server_id}.log
-"""
+"""Background scheduler for periodic server status and detail checks."""
 
-import os
 import json
 import logging
 from datetime import datetime
@@ -13,40 +9,11 @@ from apscheduler.triggers.interval import IntervalTrigger
 from sqlalchemy.orm.exc import StaleDataError
 
 from app.core.database import SessionLocal
+from app.core.audit_log import write_server_log
 from app.models.server import Server
 from infrastructure.ssh_client import check_online, get_server_info_via_ssh
 
 logger = logging.getLogger("scheduler")
-
-LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "log")
-
-
-def _log_line(server_id: int, payload: dict):
-    """Append a JSON line to the server's log file."""
-    os.makedirs(LOG_DIR, exist_ok=True)
-    path = os.path.join(LOG_DIR, f"{server_id}.log")
-    payload["time"] = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-    line = json.dumps(payload, ensure_ascii=False)
-    with open(path, "a", encoding="utf-8") as f:
-        f.write(line + "\n")
-
-
-def _read_logs(server_id: int, limit: int = 200) -> list[dict]:
-    """Read last `limit` JSON log lines for a server."""
-    path = os.path.join(LOG_DIR, f"{server_id}.log")
-    if not os.path.exists(path):
-        return []
-    with open(path, "r", encoding="utf-8") as f:
-        lines = f.readlines()
-    result = []
-    for raw in reversed(lines[-limit:]):
-        raw = raw.strip()
-        if raw:
-            try:
-                result.append(json.loads(raw))
-            except Exception:
-                pass
-    return result
 
 
 def _update_server_by_id(db, server_id: int, values: dict) -> bool:
@@ -95,7 +62,7 @@ async def status_check_task(app):
             })
             checked += 1
 
-            _log_line(server.id, {
+            write_server_log(server.ip, {
                 "type": "status_check",
                 "online": online,
                 "changed": server.is_online != online,
@@ -142,7 +109,7 @@ async def detail_fetch_task(app):
             )
 
             if info.error:
-                _log_line(server.id, {
+                write_server_log(server.ip, {
                     "type": "detail_fetch",
                     "online": server.is_online,
                     "error": info.error,
@@ -159,7 +126,7 @@ async def detail_fetch_task(app):
                     "interfaces": info.interfaces or [],
                     "hostname": info.hostname,
                 }
-                _log_line(server.id, snapshot)
+                write_server_log(server.ip, snapshot)
 
                 _update_server_by_id(db, server.id, {
                     "cached_info": json.dumps(snapshot, ensure_ascii=False),

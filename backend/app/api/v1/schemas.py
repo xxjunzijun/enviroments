@@ -128,6 +128,7 @@ class SwitchResponse(BaseModel):
     id: int
     name: str
     ip: str
+    board_type: Optional[str] = None
     port: int
     username: str
     password: Optional[str] = None
