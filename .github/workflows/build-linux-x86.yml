@@ -55,16 +55,24 @@ jobs:
               "${PYTHON}" -m pip install -r requirements.txt
               PYINSTALLER_COMPILE_BOOTLOADER=1 "${PYTHON}" -m pip install --no-binary pyinstaller pyinstaller
               "${PYTHON}" -m PyInstaller Enviroments.spec --noconfirm --clean --distpath ../dist --workpath ../build
+              rm -f ../dist/Enviroments/_internal/libgcc_s.so.1
 
               ldd --version > /tmp/ldd-version.txt 2>&1
               head -n 1 /tmp/ldd-version.txt
 
-              required_glibc="$(strings ../dist/Enviroments/Enviroments | grep -o "GLIBC_[0-9.]*" | sort -Vu | tail -n 1 || true)"
-              echo "Highest GLIBC symbol required by bootloader: ${required_glibc:-none}"
-              if [ -n "${required_glibc}" ] && [ "$(printf "%s\nGLIBC_2.34\n" "${required_glibc}" | sort -V | tail -n 1)" != "GLIBC_2.34" ]; then
-                echo "Executable requires ${required_glibc}, expected GLIBC_2.34 or lower"
-                exit 1
-              fi
+              failed=0
+              while IFS= read -r -d "" file; do
+                required_glibc="$(strings "${file}" 2>/dev/null | grep -o "GLIBC_[0-9.]*" | sort -Vu | tail -n 1 || true)"
+                if [ -z "${required_glibc}" ]; then
+                  continue
+                fi
+                echo "${file}: highest ${required_glibc}"
+                if [ "$(printf "%s\nGLIBC_2.34\n" "${required_glibc}" | sort -V | tail -n 1)" != "GLIBC_2.34" ]; then
+                  echo "${file} requires ${required_glibc}, expected GLIBC_2.34 or lower"
+                  failed=1
+                fi
+              done < <(find ../dist/Enviroments -type f -print0)
+              exit "${failed}"
             '
 
       - name: Package tarball

@@ -49,6 +49,13 @@ a = Analysis(
     ],
 )
 
+# Linux targets should use the deployment system's libgcc. Bundling a libgcc
+# from the build image can accidentally raise the required GLIBC version.
+a.binaries = [
+    item for item in a.binaries
+    if os.path.basename(item[0]) != "libgcc_s.so.1"
+]
+
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
 exe = EXE(
