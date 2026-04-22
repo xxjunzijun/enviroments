@@ -39,3 +39,5 @@ def ensure_schema():
         server_columns = {row[1] for row in conn.execute(text("PRAGMA table_info(servers)"))}
         if "detail_note" not in server_columns:
             conn.execute(text("ALTER TABLE servers ADD COLUMN detail_note TEXT"))
+        if "occupied_at" not in server_columns:
+            conn.execute(text("ALTER TABLE servers ADD COLUMN occupied_at DATETIME"))

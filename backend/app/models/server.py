@@ -28,6 +28,7 @@ class Server(Base):
     bmc_username = Column(String(255), nullable=True)
     bmc_password = Column(String(255), nullable=True)
     occupied_by = Column(String(50), nullable=True)     # 当前占用者用户名
+    occupied_at = Column(DateTime, nullable=True)
 
     cached_info = Column(Text, nullable=True)          # JSON: latest full info snapshot
     cached_at = Column(DateTime, nullable=True)

@@ -45,6 +45,7 @@ def _server_snapshot(server: Server) -> dict:
         "bmc_username": server.bmc_username,
         "has_bmc_password": bool(server.bmc_password),
         "occupied_by": server.occupied_by,
+        "occupied_at": server.occupied_at.isoformat() if server.occupied_at else None,
     }
 
 
@@ -74,7 +75,9 @@ def occupy_server(server_id: int, db: Session = Depends(get_db), current_user=De
     if not server:
         raise HTTPException(status_code=404, detail="Server not found")
     previous = server.occupied_by
+    previous_at = server.occupied_at
     server.occupied_by = current_user.username
+    server.occupied_at = datetime.now()
     db.commit()
     db.refresh(server)
     write_server_log(server.ip, {
@@ -86,6 +89,10 @@ def occupy_server(server_id: int, db: Session = Depends(get_db), current_user=De
             "occupied_by": {
                 "old": previous,
                 "new": server.occupied_by,
+            },
+            "occupied_at": {
+                "old": previous_at.isoformat() if previous_at else None,
+                "new": server.occupied_at.isoformat() if server.occupied_at else None,
             },
         },
     })
@@ -101,7 +108,9 @@ def release_server(server_id: int, db: Session = Depends(get_db), current_user=D
     if server.occupied_by and server.occupied_by != current_user.username:
         raise HTTPException(status_code=403, detail="鍙兘鏈汉鎴栫鐞嗗憳閲婃斁")
     previous = server.occupied_by
+    previous_at = server.occupied_at
     server.occupied_by = None
+    server.occupied_at = None
     db.commit()
     db.refresh(server)
     write_server_log(server.ip, {
@@ -112,6 +121,10 @@ def release_server(server_id: int, db: Session = Depends(get_db), current_user=D
         "changes": {
             "occupied_by": {
                 "old": previous,
+                "new": None,
+            },
+            "occupied_at": {
+                "old": previous_at.isoformat() if previous_at else None,
                 "new": None,
             },
         },
@@ -423,6 +436,7 @@ def _to_response(server: Server, is_favorite: bool = False) -> ServerResponse:
         cached_mem=cached_mem,
         cached_interfaces=cached_interfaces,
         occupied_by=server.occupied_by,
+        occupied_at=server.occupied_at,
         assoc_switch_count=len(server.switches) if server.switches else 0,
         is_favorite=is_favorite,
     )

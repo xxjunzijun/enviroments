@@ -63,6 +63,7 @@ class ServerResponse(BaseModel):
     cached_mem: Optional[int] = None         # extracted from cached_info (MB)
     cached_interfaces: Optional[list] = None # extracted from cached_info (list, light)
     occupied_by: Optional[str] = None
+    occupied_at: Optional[datetime] = None
     assoc_switch_count: Optional[int] = None
     is_favorite: bool = False
 

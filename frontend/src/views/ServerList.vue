@@ -107,7 +107,10 @@
       <el-table-column label="使用人" min-width="150" align="center">
         <template #default="{ row }">
           <div v-if="row.occupied_by" class="occupy-cell">
-            <span class="occupied-by" :title="`当前占用人：${row.occupied_by}`">{{ row.occupied_by }}</span>
+            <span class="occupy-info">
+              <span class="occupied-by" :title="`当前占用人：${row.occupied_by}`">{{ row.occupied_by }}</span>
+              <span v-if="row.occupied_at" class="occupied-at">{{ formatOccupyTime(row.occupied_at) }}</span>
+            </span>
             <el-link
               v-if="row.occupied_by === currentUsername"
               type="warning"
@@ -466,7 +469,7 @@ async function handleOccupy(row) {
     }
     const updated = await serverApi.occupy(row.id)
     const idx = servers.value.findIndex(s => s.id === row.id)
-    if (idx !== -1) servers.value[idx] = { ...servers.value[idx], occupied_by: updated.occupied_by }
+    if (idx !== -1) servers.value[idx] = { ...servers.value[idx], occupied_by: updated.occupied_by, occupied_at: updated.occupied_at }
     ElMessage.success(previousUser && previousUser !== currentUsername ? `已从 ${previousUser} 强制占用 ${row.ip}` : `已占用 ${row.ip}`)
   } catch (e) {
     if (e !== 'cancel') ElMessage.error(e.response?.data?.detail || '占用失败')
@@ -478,11 +481,19 @@ async function handleRelease(row) {
     await ElMessageBox.confirm(`确定释放服务器 "${row.ip}" 吗？`, '确认释放', { type: 'warning' })
     const updated = await serverApi.release(row.id)
     const idx = servers.value.findIndex(s => s.id === row.id)
-    if (idx !== -1) servers.value[idx] = { ...servers.value[idx], occupied_by: updated.occupied_by }
+    if (idx !== -1) servers.value[idx] = { ...servers.value[idx], occupied_by: updated.occupied_by, occupied_at: updated.occupied_at }
     ElMessage.success('已释放')
   } catch (e) {
     if (e !== 'cancel') ElMessage.error(e.response?.data?.detail || '释放失败')
   }
+}
+
+function formatOccupyTime(value) {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
 
 async function toggleFavorite(row) {
@@ -594,11 +605,25 @@ onMounted(loadServers)
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   white-space: nowrap;
+}
+.occupy-info {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+  line-height: 1.15;
 }
 .occupied-by {
   color: #e6a23c;
   font-weight: 500;
+}
+.occupied-at {
+  margin-top: 2px;
+  color: #909399;
+  font-size: 11px;
+  transform: scale(0.95);
+  transform-origin: center;
 }
 </style>
