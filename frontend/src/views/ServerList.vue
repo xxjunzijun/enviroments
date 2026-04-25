@@ -170,6 +170,15 @@
         <el-form-item label="DPU">
           <el-input v-model="form.dpu" placeholder="DPU 型号/信息" />
         </el-form-item>
+        <el-form-item label="BMC IP">
+          <el-input v-model="form.bmc_ip" placeholder="e.g. 192.168.5.1" />
+        </el-form-item>
+        <el-form-item label="BMC 用户名">
+          <el-input v-model="form.bmc_username" placeholder="e.g. admin" />
+        </el-form-item>
+        <el-form-item label="BMC 密码">
+          <el-input v-model="form.bmc_password" placeholder="BMC 密码" />
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="showAddDialog = false">取消</el-button>
@@ -242,6 +251,9 @@ const defaultForm = () => ({
   description: '',
   tags: '',
   dpu: '',
+  bmc_ip: '',
+  bmc_username: '',
+  bmc_password: '',
 })
 
 const form = ref(defaultForm())
@@ -375,6 +387,9 @@ function openEdit(row) {
     description: row.description || '',
     tags: row.tags || '',
     dpu: row.dpu || '',
+    bmc_ip: row.bmc_ip || '',
+    bmc_username: row.bmc_username || '',
+    bmc_password: row.bmc_password || '',
   }
   showAddDialog.value = true
 }
