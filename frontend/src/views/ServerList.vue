@@ -355,14 +355,33 @@ async function handleOpenBmc(row) {
     ElMessage.warning('该服务器未配置 BMC IP')
     return
   }
-  try {
-    const data = await serverApi.openBmc(row.id)
-    // 尝试带 token 打开（部分 BMC 支持）
-    const url = data.token ? `${data.bmc_url}?token=${encodeURIComponent(data.token)}` : data.bmc_url
-    window.open(url, '_blank')
-  } catch (e) {
-    ElMessage.error(e.response?.data?.detail || '打开 BMC 失败')
-  }
+  const bmcBase = `https://${row.bmc_ip}`
+  // 华为 iBMC 登录接口，POST 后重定向到控制台
+  const loginUrl = `${bmcBase}/web/login`
+  const username = row.bmc_username || ''
+  const password = row.bmc_password || ''
+
+  // 构造一个带预填信息的中间页，让用户点登录按钮
+  const html = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>BMC 登录</title></head>
+<body style="font-family:sans-serif;background:#f5f5f5;display:flex;align-items:center;justify-content:center;height:100vh;margin:0">
+<div style="background:#fff;padding:32px;border-radius:8px;box-shadow:0 2px 12px rgba(0,0,0,.1);min-width:320px">
+  <h3 style="margin:0 0 20px">${row.bmc_ip} — BMC 登录</h3>
+  <form id="f" action="${loginUrl}" method="POST" target="_blank">
+    <input name="username" value="${username}" style="width:100%;padding:8px;margin-bottom:12px;box-sizing:border-box" />
+    <input name="password" value="${password}" type="password" style="width:100%;padding:8px;margin-bottom:16px;box-sizing:border-box" />
+    <button type="submit" style="width:100%;padding:10px;background:#409eff;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:14px">登录</button>
+  </form>
+  <p style="color:#888;font-size:12px;margin:12px 0 0">（用户名密码已预填，点击登录即可）</p>
+</div>
+</body>
+</html>`
+
+  const blob = new Blob([html], { type: 'text/html' })
+  const url = URL.createObjectURL(blob)
+  window.open(url, '_blank')
+  setTimeout(() => URL.revokeObjectURL(url), 10000)
 }
 
 function openAdd() {
