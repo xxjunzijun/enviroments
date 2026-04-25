@@ -1,4 +1,5 @@
 import json
+import httpx
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -288,6 +289,47 @@ def check_status(server_id: int, db: Session = Depends(get_db)):
         ssh_open=online,
         message=None if online else "Server is unreachable"
     )
+
+
+@router.get("/{server_id}/open-bmc")
+def open_bmc(server_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    """
+    打了 BMC Web 界面，自动用 BMC 账号密码登录（Redfish Session）。
+    返回 BMC URL，前端在新标签页打开。
+    """
+    server = db.query(Server).filter(Server.id == server_id).first()
+    if not server:
+        raise HTTPException(status_code=404, detail="Server not found")
+
+    if not server.bmc_ip:
+        raise HTTPException(status_code=400, detail="该服务器未配置 BMC IP")
+
+    bmc_url = f"https://{server.bmc_ip}"
+    username = server.bmc_username or ""
+    password = server.bmc_password or ""
+
+    headers = {"Content-Type": "application/json"}
+    payload = {"UserName": username, "Password": password}
+
+    try:
+        with httpx.Client(verify=False, timeout=10.0) as client:
+            resp = client.post(
+                f"{bmc_url}/redfish/v1/SessionService/Sessions/",
+                headers=headers,
+                json=payload,
+            )
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"BMC 连接失败: {e}")
+
+    if resp.status_code in (200, 201):
+        token = resp.headers.get("X-Auth-Token", "")
+        location = resp.headers.get("Location", "")
+        # 返回 BMC URL，token 放在 URL 参数里（部分 BMC 支持）
+        return {"bmc_url": bmc_url, "token": token, "location": location}
+    elif resp.status_code == 401:
+        raise HTTPException(status_code=401, detail="BMC 账号或密码错误")
+    else:
+        raise HTTPException(status_code=502, detail=f"BMC 登录失败: HTTP {resp.status_code} - {resp.text[:200]}")
 
 
 @router.get("/{server_id}/detail", response_model=ServerDetailResponse)

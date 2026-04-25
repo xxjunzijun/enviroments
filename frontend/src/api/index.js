@@ -57,6 +57,8 @@ export const servers = {
   occupy: (id) => api.post(`/servers/${id}/occupy`).then(r => r.data),
 
   release: (id) => api.post(`/servers/${id}/release`).then(r => r.data),
+
+  openBmc: (id) => api.get(`/servers/${id}/open-bmc`).then(r => r.data),
 }
 
 export const files = {

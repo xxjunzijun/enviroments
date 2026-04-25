@@ -121,6 +121,7 @@
       <el-table-column label="操作" min-width="260" align="center">
         <template #default="{ row }">
           <el-button size="small" type="primary" @click="openDetail(row)">查看详情</el-button>
+          <el-button size="small" type="info" :disabled="!row.bmc_ip" @click="handleOpenBmc(row)" title="打开BMC Web界面">打开BMC</el-button>
           <el-button size="small" type="success" @click="openTerminal(row)">Web SSH</el-button>
           <el-button size="small" type="danger" @click="remove(row)">删除</el-button>
         </template>
@@ -335,6 +336,21 @@ function openDetail(row) {
 function openTerminal(row) {
   const label = encodeURIComponent(row.ip)
   window.open(`/#/ssh/server/${row.id}/${label}`, '_blank')
+}
+
+async function handleOpenBmc(row) {
+  if (!row.bmc_ip) {
+    ElMessage.warning('该服务器未配置 BMC IP')
+    return
+  }
+  try {
+    const data = await serverApi.openBmc(row.id)
+    // 尝试带 token 打开（部分 BMC 支持）
+    const url = data.token ? `${data.bmc_url}?token=${encodeURIComponent(data.token)}` : data.bmc_url
+    window.open(url, '_blank')
+  } catch (e) {
+    ElMessage.error(e.response?.data?.detail || '打开 BMC 失败')
+  }
 }
 
 function openAdd() {
