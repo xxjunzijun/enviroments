@@ -16,6 +16,7 @@ class ServerBase(BaseModel):
     bmc_ip: Optional[str] = None
     bmc_username: Optional[str] = None
     bmc_password: Optional[str] = None
+    dpu: Optional[str] = None
 
 
 class ServerCreate(ServerBase):
@@ -35,6 +36,7 @@ class ServerUpdate(BaseModel):
     bmc_ip: Optional[str] = None
     bmc_username: Optional[str] = None
     bmc_password: Optional[str] = None
+    dpu: Optional[str] = None
 
 
 class ServerResponse(BaseModel):
@@ -51,6 +53,7 @@ class ServerResponse(BaseModel):
     bmc_ip: Optional[str] = None
     bmc_username: Optional[str] = None
     bmc_password: Optional[str] = None
+    dpu: Optional[str] = None
     is_online: bool
     online_checked_at: Optional[datetime] = None
     cached_info: Optional[dict] = None   # JSON object

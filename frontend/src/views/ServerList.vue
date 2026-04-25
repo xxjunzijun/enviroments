@@ -74,33 +74,21 @@
           </template>
         </template>
       </el-table-column>
-      <el-table-column label="BMC IP" min-width="140">
+      <el-table-column label="DPU" min-width="160" show-overflow-tooltip>
         <template #default="{ row }">
-          <template v-if="editingBmcId === row.id && editingBmcField === 'bmc_ip'">
-            <el-input ref="bmcInputRef" v-model="editingBmcValue" size="small" style="width: 120px" @keyup.enter="saveBmc(row.id)" @blur="saveBmc(row.id)" placeholder="BMC IP" autocomplete="off" />
+          <template v-if="editingDpuId === row.id">
+            <el-input
+              v-model="editingDpuValue"
+              size="small"
+              style="width: 140px"
+              @keyup.enter="saveDpu(row.id)"
+              @blur="saveDpu(row.id)"
+              ref="dpuInputRef"
+              placeholder="DPU 型号/信息" autocomplete="off"
+            />
           </template>
           <template v-else>
-            <span class="tags-cell" @mousedown.prevent="startEditBmc($event, row, 'bmc_ip')" title="点击编辑BMC">{{ row.bmc_ip || '—' }}</span>
-          </template>
-        </template>
-      </el-table-column>
-      <el-table-column label="BMC 账号" min-width="120">
-        <template #default="{ row }">
-          <template v-if="editingBmcId === row.id && editingBmcField === 'bmc_username'">
-            <el-input ref="bmcInputRef" v-model="editingBmcValue" size="small" style="width: 100px" @keyup.enter="saveBmc(row.id)" @blur="saveBmc(row.id)" placeholder="用户名" autocomplete="off" />
-          </template>
-          <template v-else>
-            <span class="tags-cell" @mousedown.prevent="startEditBmc($event, row, 'bmc_username')">{{ row.bmc_username || '—' }}</span>
-          </template>
-        </template>
-      </el-table-column>
-      <el-table-column label="BMC 密码" min-width="120">
-        <template #default="{ row }">
-          <template v-if="editingBmcId === row.id && editingBmcField === 'bmc_password'">
-            <el-input ref="bmcInputRef" v-model="editingBmcValue" size="small" style="width: 100px" @keyup.enter="saveBmc(row.id)" @blur="saveBmc(row.id)" placeholder="密码" autocomplete="off" />
-          </template>
-          <template v-else>
-            <span class="tags-cell" @mousedown.prevent="startEditBmc($event, row, 'bmc_password')">{{ row.bmc_password || '—' }}</span>
+            <span class="tags-cell" @mousedown.prevent="startEditDpu(row)" title="点击编辑DPU">{{ row.dpu || '—' }}</span>
           </template>
         </template>
       </el-table-column>
@@ -178,14 +166,8 @@
         <el-form-item label="备注">
           <el-input v-model="form.description" type="textarea" rows="2" />
         </el-form-item>
-        <el-form-item label="BMC IP">
-          <el-input v-model="form.bmc_ip" placeholder="e.g. 192.168.5.1" />
-        </el-form-item>
-        <el-form-item label="BMC 用户名">
-          <el-input v-model="form.bmc_username" placeholder="e.g. admin" />
-        </el-form-item>
-        <el-form-item label="BMC 密码">
-          <el-input v-model="form.bmc_password" placeholder="BMC 密码" />
+        <el-form-item label="DPU">
+          <el-input v-model="form.dpu" placeholder="DPU 型号/信息" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -258,9 +240,7 @@ const defaultForm = () => ({
   ssh_key_file: null,
   description: '',
   tags: '',
-  bmc_ip: '',
-  bmc_username: '',
-  bmc_password: '',
+  dpu: '',
 })
 
 const form = ref(defaultForm())
@@ -271,11 +251,10 @@ const tagsInputRef = ref(null)
 const editingDescId = ref(null)
 const editingDescValue = ref('')
 const descInputRef = ref(null)
-const editingBmcId = ref(null)
-const editingBmcValue = ref('')
-const editingBmcField = ref(null)
 
-const bmcInputRef = ref(null)
+const editingDpuId = ref(null)
+const editingDpuValue = ref('')
+const dpuInputRef = ref(null)
 
 function startEditDesc(row) {
   editingDescId.value = row.id
@@ -297,34 +276,23 @@ async function saveDesc(id) {
   }
 }
 
-function focusElementPlusInput(inputRef) {
-  const input = inputRef.value
-  input?.focus?.()
-  input?.select?.()
+function startEditDpu(row) {
+  editingDpuId.value = row.id
+  editingDpuValue.value = row.dpu || ''
+  nextTick(() => dpuInputRef.value?.focus())
 }
 
-function startEditBmc(event, row, field) {
-  editingBmcId.value = row.id
-  editingBmcField.value = field
-  editingBmcValue.value = row[field] || ''
-  nextTick(() => focusElementPlusInput(bmcInputRef))
-}
-
-async function saveBmc(id) {
-  if (editingBmcId.value !== id) return
-  const idx = servers.value.findIndex(s => s.id === id)
-  if (idx === -1) return
-  const field = editingBmcField.value
-  if (!field) return
+async function saveDpu(id) {
+  if (editingDpuId.value !== id) return
+  const server = servers.value.find(s => s.id === id)
+  if (!server) return
   try {
-    await serverApi.update(id, { [field]: editingBmcValue.value })
-    // 只更新对应字段，确保响应式
-    servers.value[idx] = { ...servers.value[idx], [field]: editingBmcValue.value }
+    await serverApi.update(id, { dpu: editingDpuValue.value })
+    server.dpu = editingDpuValue.value
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || '保存BMC信息失败')
+    ElMessage.error(e.response?.data?.detail || '保存DPU信息失败')
   } finally {
-    editingBmcId.value = null
-    editingBmcField.value = null
+    editingDpuId.value = null
   }
 }
 
@@ -390,9 +358,7 @@ function openEdit(row) {
     ssh_key_file: row.ssh_key_file,
     description: row.description || '',
     tags: row.tags || '',
-    bmc_ip: row.bmc_ip || '',
-    bmc_username: row.bmc_username || '',
-    bmc_password: row.bmc_password || '',
+    dpu: row.dpu || '',
   }
   showAddDialog.value = true
 }

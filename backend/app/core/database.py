@@ -41,3 +41,5 @@ def ensure_schema():
             conn.execute(text("ALTER TABLE servers ADD COLUMN detail_note TEXT"))
         if "occupied_at" not in server_columns:
             conn.execute(text("ALTER TABLE servers ADD COLUMN occupied_at DATETIME"))
+        if "dpu" not in server_columns:
+            conn.execute(text("ALTER TABLE servers ADD COLUMN dpu TEXT"))

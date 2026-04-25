@@ -44,6 +44,7 @@ def _server_snapshot(server: Server) -> dict:
         "bmc_ip": server.bmc_ip,
         "bmc_username": server.bmc_username,
         "has_bmc_password": bool(server.bmc_password),
+        "dpu": server.dpu,
         "occupied_by": server.occupied_by,
         "occupied_at": server.occupied_at.isoformat() if server.occupied_at else None,
     }
@@ -193,6 +194,7 @@ def create_server(data: ServerCreate, db: Session = Depends(get_db), current_use
         bmc_ip=data.bmc_ip,
         bmc_username=data.bmc_username,
         bmc_password=data.bmc_password,
+        dpu=data.dpu,
     )
     db.add(server)
     db.commit()
@@ -424,6 +426,7 @@ def _to_response(server: Server, is_favorite: bool = False) -> ServerResponse:
         bmc_ip=server.bmc_ip,
         bmc_username=server.bmc_username,
         bmc_password=server.bmc_password,
+        dpu=server.dpu,
         is_online=server.is_online,
         online_checked_at=server.online_checked_at,
         cached_info=cached_info,

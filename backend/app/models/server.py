@@ -27,6 +27,7 @@ class Server(Base):
     bmc_ip = Column(String(45), nullable=True)
     bmc_username = Column(String(255), nullable=True)
     bmc_password = Column(String(255), nullable=True)
+    dpu = Column(String(255), nullable=True)           # DPU 型号/信息
     occupied_by = Column(String(50), nullable=True)     # 当前占用者用户名
     occupied_at = Column(DateTime, nullable=True)
 
