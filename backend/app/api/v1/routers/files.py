@@ -5,7 +5,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from app.core.database import SessionLocal
 from app.models.server import Server
-from infrastructure.sftp_client import list_directory, download_file, upload_file, FileEntry
+from infrastructure.sftp_client import list_directory, download_file, upload_file, create_directory, FileEntry
 
 router = APIRouter(prefix="/servers/{server_id}/files", tags=["files"], dependencies=[Depends(get_current_user)])
 
@@ -20,6 +20,10 @@ class FileListResponse(BaseModel):
 class UploadRequest(BaseModel):
     path: str        # remote destination path (including filename)
     content: str     # base64 encoded
+
+
+class MkdirRequest(BaseModel):
+    path: str
 
 
 # ── GET  /servers/:id/files?path=... ──────────────────────────────────────────
@@ -91,6 +95,24 @@ def upload(server_id: int, payload: UploadRequest):
         return result
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Upload error: {e}")
+
+
+@router.post("/mkdir")
+def mkdir(server_id: int, payload: MkdirRequest):
+    server = _get_server(server_id)
+
+    try:
+        result = create_directory(
+            ip=server.ip,
+            port=server.port,
+            username=server.ssh_username,
+            password=server.ssh_password,
+            key_file=server.ssh_key_file,
+            remote_path=payload.path,
+        )
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Mkdir error: {e}")
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────

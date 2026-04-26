@@ -25,6 +25,17 @@
           {{ row.board_type || '—' }}
         </template>
       </el-table-column>
+      <el-table-column label="连接方式" min-width="100" align="center">
+        <template #default>
+          <el-tag size="small" type="success">SSH</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column prop="username" label="用户名" min-width="120" show-overflow-tooltip />
+      <el-table-column prop="password" label="密码" min-width="120" show-overflow-tooltip>
+        <template #default="{ row }">
+          {{ row.password || '—' }}
+        </template>
+      </el-table-column>
       <el-table-column prop="port" label="端口" min-width="80" align="center" />
       <el-table-column prop="tags" label="标签" min-width="160">
         <template #default="{ row }">

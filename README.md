@@ -10,7 +10,7 @@
 - 每个用户独立收藏服务器，主页可切换“只看收藏”。
 - 服务器详情页支持可自由编辑保存的“详情记录”文本框。
 - Web SSH：浏览器内终端，基于 WebSocket + xterm.js。
-- 文件管理：通过 SFTP 浏览目录、上传、下载，单击目录进入。
+- 文件管理：通过 SFTP 浏览目录、上传、下载，单击目录进入；支持新建目录、拖拽上传文件/目录、上传进度/取消，以及按用户记住每台服务器上次访问目录。
 - 交换机管理：交换机 CRUD、SSH 采集 `display version`、关联服务器、详情和日志。
 - 日志系统：按服务器/交换机写入 JSON 行日志，前端详情页可查看、刷新和清空。
 - Windows EXE 与 Linux tar.gz 打包：GitHub Actions 和本地脚本均可构建。
@@ -176,7 +176,7 @@ python tests/webssh_smoke.py --help
 ## 数据与日志
 
 - SQLite 数据库默认在 `backend/enviroments.db`。
-- 服务器日志在 `backend/log/{server_id}.log`。
+- 服务器日志在 `backend/log/{server_ip}.log`。
 - 交换机日志在 `backend/log/switch_{id}.log`。
 - `frontend/dist/`、`backend/enviroments.db`、日志、虚拟环境和依赖目录不应提交到仓库。
 

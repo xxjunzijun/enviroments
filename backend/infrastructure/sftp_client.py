@@ -154,6 +154,26 @@ def upload_file(
         client.close()
 
 
+def create_directory(
+    ip: str,
+    port: int,
+    username: str,
+    password: Optional[str],
+    key_file: Optional[str],
+    remote_path: str,
+) -> dict:
+    """Create a directory recursively via SFTP."""
+    client = sftp_connect(ip, port, username, password, key_file)
+    try:
+        normalized = (remote_path or "").replace("\\", "/").rstrip("/")
+        if not normalized or normalized == ".":
+            raise ValueError("Directory path is required")
+        _mkdir_recursive(client, normalized)
+        return {"path": normalized, "success": True}
+    finally:
+        client.close()
+
+
 def _mkdir_recursive(sftp, path: str):
     """Create directory and all parents via SFTP if they don't exist."""
     dirs = []

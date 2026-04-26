@@ -66,8 +66,11 @@ export const files = {
 
   downloadUrl: (serverId, path) => `/api/v1/servers/${serverId}/files/download?path=${encodeURIComponent(path)}`,
 
-  upload: (serverId, path, base64Content) =>
-    api.post(`/servers/${serverId}/files`, { path, content: base64Content }).then(r => r.data),
+  upload: (serverId, path, base64Content, config = {}) =>
+    api.post(`/servers/${serverId}/files`, { path, content: base64Content }, config).then(r => r.data),
+
+  mkdir: (serverId, path, config = {}) =>
+    api.post(`/servers/${serverId}/files/mkdir`, { path }, config).then(r => r.data),
 }
 
 export const logs = {

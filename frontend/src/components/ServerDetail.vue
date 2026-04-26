@@ -1,158 +1,224 @@
 <template>
-  <el-drawer v-model="drawerVisible" :title="`服务器 ${serverIp}`" size="50%" direction="rtl" class="server-detail-drawer">
-
-    <!-- Tabs: 详情 / 文件管理 / 日志 -->
+  <el-drawer
+    v-model="drawerVisible"
+    :title="`${text.serverTitle} ${serverIp}`"
+    size="50%"
+    direction="rtl"
+    class="server-detail-drawer"
+  >
     <el-tabs v-model="activeTab" class="server-tabs">
-
-      <!-- ── 详情 ─────────────────────────────────────────────────────────── -->
-      <el-tab-pane label="详情" name="detail">
+      <el-tab-pane :label="text.detailTab" name="detail">
         <template v-if="detail">
+          <el-alert
+            v-if="detailError"
+            :title="detailError"
+            type="warning"
+            :closable="false"
+            show-icon
+            style="margin-bottom: 12px"
+          />
+
           <el-descriptions :column="1" border size="small">
-            <el-descriptions-item label="IP">{{ detail.ip }}</el-descriptions-item>
-            <el-descriptions-item label="系统">{{ detail.os_type }} — {{ detail.os_version || '—' }}</el-descriptions-item>
-            <el-descriptions-item label="CPU">{{ detail.cpu ?? '—' }} 核{{ detail.cpu_model ? ' / ' + detail.cpu_model : '' }}</el-descriptions-item>
-            <el-descriptions-item label="内存">{{ detail.mem ? detail.mem + ' MB' : '—' }}</el-descriptions-item>
-            <el-descriptions-item label="标签">{{ detail.tags || '—' }}</el-descriptions-item>
-            <el-descriptions-item label="备注">{{ detail.description || '—' }}</el-descriptions-item>
-            <el-descriptions-item label="采集时间">{{ detail.cached_at || '—' }}</el-descriptions-item>
+            <el-descriptions-item :label="text.ip">{{ detail.ip }}</el-descriptions-item>
+            <el-descriptions-item :label="text.os">
+              {{ detail.os_type }} / {{ detail.os_version || text.empty }}
+            </el-descriptions-item>
+            <el-descriptions-item :label="text.cpu">
+              {{ detail.cpu ?? text.empty }} {{ text.cpuUnit }}{{ detail.cpu_model ? ` / ${detail.cpu_model}` : '' }}
+            </el-descriptions-item>
+            <el-descriptions-item :label="text.memory">
+              {{ detail.mem ? `${detail.mem} MB` : text.empty }}
+            </el-descriptions-item>
+            <el-descriptions-item :label="text.tags">{{ detail.tags || text.empty }}</el-descriptions-item>
+            <el-descriptions-item :label="text.description">{{ detail.description || text.empty }}</el-descriptions-item>
+            <el-descriptions-item :label="text.cachedAt">{{ detail.cached_at || text.empty }}</el-descriptions-item>
           </el-descriptions>
 
-          <el-divider>网卡</el-divider>
-          <el-table v-if="detail.interfaces?.length" :data="detail.interfaces" size="small" max-height="200">
-            <el-table-column prop="name" label="网卡" width="90" />
-            <el-table-column prop="ip" label="IP" min-width="120" />
+          <el-divider>{{ text.interfaces }}</el-divider>
+          <el-table
+            v-if="detail.interfaces?.length"
+            :data="detail.interfaces"
+            size="small"
+            max-height="200"
+          >
+            <el-table-column prop="name" :label="text.interfaceName" width="90" />
+            <el-table-column prop="ip" :label="text.ip" min-width="120" />
             <el-table-column prop="mac" label="MAC" width="140" />
-            <el-table-column prop="pci_addr" label="PCI 地址" width="110" show-overflow-tooltip />
-            <el-table-column prop="pci_desc" label="PCI 设备" min-width="180" show-overflow-tooltip />
-            <el-table-column prop="speed" label="速率" width="80" />
+            <el-table-column prop="pci_addr" :label="text.pciAddress" width="110" show-overflow-tooltip />
+            <el-table-column prop="pci_desc" :label="text.pciDevice" min-width="180" show-overflow-tooltip />
+            <el-table-column prop="speed" :label="text.speed" width="80" />
           </el-table>
-          <el-empty v-else description="暂无网卡信息" />
+          <el-empty v-else :description="text.noInterfaces" />
 
           <div class="detail-note-panel">
             <div class="detail-note-header">
-              <span>详情记录</span>
-              <el-button size="small" type="primary" @click="saveDetailNote" :loading="savingDetailNote">
-                保存
+              <span>{{ text.detailNote }}</span>
+              <el-button size="small" type="primary" :loading="savingDetailNote" @click="saveDetailNote">
+                {{ text.save }}
               </el-button>
             </div>
             <el-input
               v-model="detailNoteDraft"
               type="textarea"
               :autosize="{ minRows: 5, maxRows: 12 }"
-              placeholder="可以在这里记录维护信息、排障过程、资产说明等"
+              :placeholder="text.detailNotePlaceholder"
             />
           </div>
 
           <div class="detail-actions">
-            <el-button type="primary" size="small" @click="fetchDetail" :loading="fetchingDetail">
-              <el-icon><Refresh /></el-icon> 重新采集
+            <el-button type="primary" size="small" :loading="fetchingDetail" @click="fetchDetail">
+              <el-icon><Refresh /></el-icon> {{ text.fetchDetail }}
             </el-button>
-            <el-button size="small" @click="checkStatus">检测状态</el-button>
-            <el-button size="small" @click="openEdit">编辑</el-button>
-            <el-button size="small" type="danger" @click="deleteServer">删除</el-button>
+            <el-button size="small" @click="checkStatus">{{ text.checkStatus }}</el-button>
+            <el-button size="small" @click="openEdit">{{ text.edit }}</el-button>
+            <el-button size="small" type="danger" @click="deleteServer">{{ text.delete }}</el-button>
           </div>
         </template>
-        <el-empty v-else-if="loadingDetail" description="加载中…" />
-        <el-empty v-else-if="initialLoading" description="加载中…" />
+
+        <el-empty v-else-if="loadingDetail" :description="text.loading" />
+        <el-empty v-else-if="initialLoading" :description="text.loading" />
       </el-tab-pane>
 
-      <!-- ── 文件管理 ──────────────────────────────────────────────────────── -->
-      <el-tab-pane label="文件管理" name="files">
-        <!-- Path bar: breadcrumb -->
-        <div class="path-bar">
-          <el-button size="small" text @click="navigateRoot" title="回到根目录">
-            <el-icon><House /></el-icon>
-          </el-button>
-          <el-button size="small" text :disabled="currentPath === '/'" @click="goUp" title="上一级">
-            <el-icon><Top /></el-icon>
-          </el-button>
-          <span class="breadcrumb-sep">/</span>
-          <span
-            v-for="(seg, i) in pathSegments"
-            :key="i"
-            class="breadcrumb-seg"
-            :class="{ 'last': i === pathSegments.length - 1 }"
-            @click="navigateToSeg(i)"
-          >{{ seg }}</span>
-        </div>
+      <el-tab-pane :label="text.filesTab" name="files">
+        <div class="file-panel">
+          <div class="path-bar">
+            <el-button size="small" text :title="text.rootTitle" @click="navigateRoot">
+              <el-icon><House /></el-icon>
+            </el-button>
+            <el-button size="small" text :disabled="currentPath === '/'" :title="text.upTitle" @click="goUp">
+              <el-icon><Top /></el-icon>
+            </el-button>
 
-        <!-- File list: double-click to enter/download -->
-        <el-table
-          :data="entries"
-          v-loading="loading"
-          size="small"
-          class="file-table"
-          @row-dblclick="onRowDblClick"
-          @row-click="onRowClick"
-          highlight-current-row
-        >
-          <el-table-column width="40">
-            <template #default="{ row }">
-              <el-icon :color="row.type === 'directory' ? '#409eff' : '#909399'" size="18">
-                <FolderOpened v-if="row.type === 'directory'" />
-                <Document v-else />
-              </el-icon>
+            <template v-if="pathEditing">
+              <el-input
+                ref="pathInputRef"
+                v-model="pathDraft"
+                size="small"
+                class="path-input"
+                @keyup.enter="submitPathDraft"
+                @blur="submitPathDraft"
+              />
             </template>
-          </el-table-column>
-          <el-table-column prop="name" label="名称" min-width="240">
-            <template #default="{ row }">
-              <span :class="row.type === 'directory' ? 'dir-name' : 'file-name'">{{ row.name }}</span>
+            <template v-else>
+              <div class="path-display" :title="currentPath" @click="startEditPath">
+                <span class="breadcrumb-sep">/</span>
+                <span
+                  v-for="(seg, i) in pathSegments"
+                  :key="i"
+                  class="breadcrumb-seg"
+                  :class="{ last: i === pathSegments.length - 1 }"
+                  @click.stop="navigateToSeg(i)"
+                >
+                  {{ seg }}
+                </span>
+              </div>
             </template>
-          </el-table-column>
-          <el-table-column label="大小" width="90" align="right">
-            <template #default="{ row }">
-              <span v-if="row.type === 'file'" class="file-size">{{ formatSize(row.size) }}</span>
-              <span v-else>—</span>
-            </template>
-          </el-table-column>
-        </el-table>
+          </div>
 
-        <!-- Toolbar -->
-        <div class="file-toolbar">
-          <el-button size="small" @click="refresh">
-            <el-icon><Refresh /></el-icon> 刷新
-          </el-button>
-          <el-button size="small" type="primary" @click="showUploadDialog">
-            <el-icon><Upload /></el-icon> 上传文件
-          </el-button>
-          <el-button size="small" @click="downloadSelected" :disabled="!selectedFile">
-            <el-icon><Download /></el-icon> 下载
-          </el-button>
+          <div
+            class="file-table-wrap"
+            @dragover.prevent="onTableDragOver"
+            @dragleave.prevent="onTableDragLeave"
+            @drop.prevent="onTableDrop"
+          >
+            <el-table
+              :data="entries"
+              v-loading="loading || uploading"
+              size="small"
+              class="file-table"
+              highlight-current-row
+              @row-dblclick="onRowDblClick"
+              @row-click="onRowClick"
+            >
+              <el-table-column width="40">
+                <template #default="{ row }">
+                  <el-icon :color="row.type === 'directory' ? '#409eff' : '#909399'" size="18">
+                    <FolderOpened v-if="row.type === 'directory'" />
+                    <Document v-else />
+                  </el-icon>
+                </template>
+              </el-table-column>
+              <el-table-column prop="name" :label="text.name" min-width="240">
+                <template #default="{ row }">
+                  <span :class="row.type === 'directory' ? 'dir-name' : 'file-name'">{{ row.name }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column :label="text.size" width="90" align="right">
+                <template #default="{ row }">
+                  <span v-if="row.type === 'file'" class="file-size">{{ formatSize(row.size) }}</span>
+                  <span v-else>{{ text.empty }}</span>
+                </template>
+              </el-table-column>
+            </el-table>
+
+            <div v-if="dragOverActive" class="drop-overlay">
+              {{ text.dropHint }}
+            </div>
+          </div>
+
+          <div class="file-floating-bar">
+            <div class="file-toolbar">
+              <el-button size="small" @click="refresh">
+                <el-icon><Refresh /></el-icon> {{ text.refresh }}
+              </el-button>
+              <el-button size="small" @click="createFolder">{{ text.createFolder }}</el-button>
+              <el-button size="small" type="primary" @click="showUploadDialog">
+                <el-icon><Upload /></el-icon> {{ text.uploadFile }}
+              </el-button>
+              <el-button size="small" :disabled="!selectedFile" @click="downloadSelected">
+                <el-icon><Download /></el-icon> {{ text.download }}
+              </el-button>
+            </div>
+
+            <div v-if="uploadProgress.visible" class="upload-progress">
+              <div class="upload-progress-main">
+                <span class="upload-progress-label">{{ uploadProgress.label }}</span>
+                <span v-if="uploadProgress.currentName" class="upload-progress-file">
+                  {{ text.currentFilePrefix }} {{ uploadProgress.currentName }}
+                </span>
+              </div>
+              <div class="upload-progress-actions">
+                <span class="upload-progress-count">
+                  {{ text.uploadedCountPrefix }} {{ uploadProgress.completed }} {{ text.uploadedCountSep }} {{ uploadProgress.total }}
+                </span>
+                <el-button size="small" text type="danger" @click="cancelCurrentUpload">
+                  {{ text.cancelUpload }}
+                </el-button>
+              </div>
+            </div>
+          </div>
         </div>
       </el-tab-pane>
 
-      <!-- ── 日志 ───────────────────────────────────────────────────────────── -->
-      <el-tab-pane label="日志" name="logs">
+      <el-tab-pane :label="text.logsTab" name="logs">
         <div class="log-toolbar">
-          <el-button size="small" @click="loadLogs" :loading="loadingLogs">
-            <el-icon><Refresh /></el-icon> 刷新
+          <el-button size="small" :loading="loadingLogs" @click="loadLogs">
+            <el-icon><Refresh /></el-icon> {{ text.refresh }}
           </el-button>
-          <el-button size="small" type="danger" @click="clearLogs">
-            清空日志
-          </el-button>
+          <el-button size="small" type="danger" @click="clearLogs">{{ text.clearLogs }}</el-button>
         </div>
 
         <div class="log-container" v-loading="loadingLogs">
-          <div v-if="logs.length === 0" class="log-empty">暂无日志记录</div>
+          <div v-if="logs.length === 0" class="log-empty">{{ text.noLogs }}</div>
           <div v-else class="log-list">
             <div v-for="(log, i) in logs" :key="i" class="log-line" :class="logClass(log)">
-              <span class="log-time">{{ log.time || '—' }}</span>
+              <span class="log-time">{{ log.time || text.empty }}</span>
               <span class="log-type">{{ logTypeLabel(log) }}</span>
               <span class="log-status" :class="log.online ? 'online' : 'offline'">
-                {{ log.online === true ? '在线' : log.online === false ? '离线' : '—' }}
+                {{ log.online === true ? text.online : log.online === false ? text.offline : text.empty }}
               </span>
-              <span v-if="log.actor" class="log-info">用户 {{ log.actor }}</span>
+              <span v-if="log.actor" class="log-info">{{ text.user }} {{ log.actor }}</span>
               <span v-if="logChangeSummary(log)" class="log-info">{{ logChangeSummary(log) }}</span>
-              <span v-if="log.cpu" class="log-info">CPU {{ log.cpu }}核</span>
-              <span v-if="log.mem" class="log-info">内存 {{ log.mem }}MB</span>
+              <span v-if="log.cpu" class="log-info">CPU {{ log.cpu }}{{ text.cpuUnit }}</span>
+              <span v-if="log.mem" class="log-info">{{ text.memory }} {{ log.mem }}MB</span>
               <span v-if="log.os_version" class="log-info">{{ log.os_version }}</span>
               <div v-if="logInterfaces(log).length" class="log-interfaces">
-                <div class="log-interfaces-title">网卡详情</div>
+                <div class="log-interfaces-title">{{ text.interfacesDetail }}</div>
                 <div v-for="(item, idx) in logInterfaces(log)" :key="idx" class="log-interface-item">
                   <span class="iface-name">{{ item.name || 'unknown' }}</span>
                   <span v-if="item.ip">IP {{ item.ip }}</span>
                   <span v-if="item.mac">MAC {{ item.mac }}</span>
-                  <span v-if="item.speed">速率 {{ item.speed }}</span>
+                  <span v-if="item.speed">{{ text.speed }} {{ item.speed }}</span>
                   <span v-if="item.pci_addr">PCI {{ item.pci_addr }}</span>
                   <span v-if="item.pci_desc">{{ item.pci_desc }}</span>
                 </div>
@@ -161,135 +227,272 @@
             </div>
           </div>
         </div>
-
       </el-tab-pane>
-
     </el-tabs>
 
-    <!-- Upload Dialog -->
-    <el-dialog v-model="uploadDialogVisible" title="上传文件" width="440px">
+    <el-dialog v-model="uploadDialogVisible" :title="text.uploadFile" width="440px">
       <el-form>
-        <el-form-item label="目标路径">
-          <el-input v-model="uploadRemotePath" placeholder="例: /home/user/" />
+        <el-form-item :label="text.targetPath">
+          <el-input v-model="uploadRemotePath" :placeholder="text.targetPathPlaceholder" />
         </el-form-item>
-        <el-form-item label="选择文件">
-          <input type="file" @change="onFileSelected" style="width:100%" />
+        <el-form-item :label="text.selectFile">
+          <input type="file" style="width: 100%" @change="onFileSelected" />
         </el-form-item>
-        <el-form-item v-if="uploadFileName" label="文件名">
+        <el-form-item v-if="uploadFileName" :label="text.fileName">
           <el-tag>{{ uploadFileName }}</el-tag>
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="uploadDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="doUpload" :loading="uploading">上传</el-button>
+        <el-button @click="uploadDialogVisible = false">{{ text.cancel }}</el-button>
+        <el-button type="primary" :loading="uploading" @click="doUpload">{{ text.upload }}</el-button>
       </template>
     </el-dialog>
   </el-drawer>
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import {
-  FolderOpened, Document, Refresh, Top, House, Upload, Download
-} from '@element-plus/icons-vue'
-import { servers as serverApi, files as filesApi, logs as logsApi } from '../api/index.js'
+import { Document, Download, FolderOpened, House, Refresh, Top, Upload } from '@element-plus/icons-vue'
+import { files as filesApi, logs as logsApi, servers as serverApi } from '../api/index.js'
+
+const text = {
+  serverTitle: '\u670d\u52a1\u5668',
+  detailTab: '\u8be6\u60c5',
+  filesTab: '\u6587\u4ef6\u7ba1\u7406',
+  logsTab: '\u65e5\u5fd7',
+  ip: 'IP',
+  os: '\u7cfb\u7edf',
+  cpu: 'CPU',
+  cpuUnit: '\u6838',
+  memory: '\u5185\u5b58',
+  tags: '\u6807\u7b7e',
+  description: '\u5907\u6ce8',
+  cachedAt: '\u91c7\u96c6\u65f6\u95f4',
+  interfaces: '\u7f51\u5361',
+  interfaceName: '\u7f51\u5361',
+  pciAddress: 'PCI \u5730\u5740',
+  pciDevice: 'PCI \u8bbe\u5907',
+  speed: '\u901f\u7387',
+  noInterfaces: '\u6682\u65e0\u7f51\u5361\u4fe1\u606f',
+  detailNote: '\u8be6\u60c5\u8bb0\u5f55',
+  detailNotePlaceholder: '\u53ef\u4ee5\u5728\u8fd9\u91cc\u8bb0\u5f55\u7ef4\u62a4\u4fe1\u606f\u3001\u6392\u969c\u8fc7\u7a0b\u3001\u8d44\u4ea7\u8bf4\u660e\u7b49',
+  save: '\u4fdd\u5b58',
+  fetchDetail: '\u91cd\u65b0\u91c7\u96c6',
+  checkStatus: '\u68c0\u6d4b\u72b6\u6001',
+  edit: '\u7f16\u8f91',
+  delete: '\u5220\u9664',
+  loading: '\u52a0\u8f7d\u4e2d...',
+  rootTitle: '\u56de\u5230\u6839\u76ee\u5f55',
+  upTitle: '\u4e0a\u4e00\u7ea7',
+  name: '\u540d\u79f0',
+  size: '\u5927\u5c0f',
+  refresh: '\u5237\u65b0',
+  createFolder: '\u65b0\u5efa\u76ee\u5f55',
+  uploadFile: '\u4e0a\u4f20\u6587\u4ef6',
+  download: '\u4e0b\u8f7d',
+  dropHint: '\u62d6\u62fd\u6587\u4ef6\u6216\u76ee\u5f55\u5230\u8fd9\u91cc\u4e0a\u4f20\u5230\u5f53\u524d\u76ee\u5f55',
+  clearLogs: '\u6e05\u7a7a\u65e5\u5fd7',
+  noLogs: '\u6682\u65e0\u65e5\u5fd7\u8bb0\u5f55',
+  online: '\u5728\u7ebf',
+  offline: '\u79bb\u7ebf',
+  user: '\u7528\u6237',
+  interfacesDetail: '\u7f51\u5361\u8be6\u60c5',
+  targetPath: '\u76ee\u6807\u8def\u5f84',
+  targetPathPlaceholder: '\u4f8b\u5982 /home/user/',
+  selectFile: '\u9009\u62e9\u6587\u4ef6',
+  fileName: '\u6587\u4ef6\u540d',
+  cancel: '\u53d6\u6d88',
+  upload: '\u4e0a\u4f20',
+  empty: '-',
+  loadFailed: '\u52a0\u8f7d\u5931\u8d25',
+  fetchFailed: '\u8be6\u60c5\u91c7\u96c6\u5931\u8d25',
+  fetchSuccess: '\u91c7\u96c6\u6210\u529f',
+  statusFailed: '\u68c0\u6d4b\u5931\u8d25',
+  detailNoteSaved: '\u8be6\u60c5\u8bb0\u5f55\u5df2\u4fdd\u5b58',
+  detailNoteSaveFailed: '\u4fdd\u5b58\u8be6\u60c5\u8bb0\u5f55\u5931\u8d25',
+  deleteConfirm: '\u5220\u9664\u8be5\u670d\u52a1\u5668\uff1f\u6b64\u64cd\u4f5c\u4e0d\u53ef\u6062\u590d\u3002',
+  deleteConfirmTitle: '\u786e\u8ba4\u5220\u9664',
+  deleted: '\u5df2\u5220\u9664',
+  readDirFailed: '\u8bfb\u53d6\u76ee\u5f55\u5931\u8d25',
+  chooseFileFirst: '\u8bf7\u5148\u9009\u62e9\u6587\u4ef6',
+  uploadSuccess: '\u4e0a\u4f20\u6210\u529f',
+  uploadFailed: '\u4e0a\u4f20\u5931\u8d25',
+  readFileTimeout: '\u6587\u4ef6\u8bfb\u53d6\u8d85\u65f6',
+  readFileFailed: '\u6587\u4ef6\u8bfb\u53d6\u5931\u8d25',
+  createFolderPrompt: '\u8bf7\u8f93\u5165\u65b0\u76ee\u5f55\u540d\u79f0\u6216\u5b8c\u6574\u8def\u5f84',
+  createFolderTitle: '\u65b0\u5efa\u76ee\u5f55',
+  create: '\u521b\u5efa',
+  folderCreated: '\u76ee\u5f55\u521b\u5efa\u6210\u529f',
+  folderCreateFailed: '\u76ee\u5f55\u521b\u5efa\u5931\u8d25',
+  clearLogsConfirm: '\u786e\u5b9a\u6e05\u7a7a\u8be5\u670d\u52a1\u5668\u7684\u6240\u6709\u65e5\u5fd7\uff1f',
+  clearConfirmTitle: '\u786e\u8ba4',
+  logsCleared: '\u5df2\u6e05\u7a7a',
+  loadLogsFailed: '\u52a0\u8f7d\u65e5\u5fd7\u5931\u8d25',
+  logStatus: '\u72b6\u6001',
+  logDetail: '\u8be6\u60c5',
+  logCreate: '\u521b\u5efa',
+  logDelete: '\u5220\u9664',
+  logOccupy: '\u5360\u7528',
+  logRelease: '\u91ca\u653e',
+  logUpdate: '\u4fee\u6539',
+  logDefault: '\u65e5\u5fd7',
+  port: '\u7aef\u53e3',
+  sshUsername: 'SSH\u8d26\u53f7',
+  sshPassword: 'SSH\u5bc6\u7801',
+  sshKeyFile: 'SSH\u5bc6\u94a5',
+  bmcUsername: 'BMC\u8d26\u53f7',
+  bmcPassword: 'BMC\u5bc6\u7801',
+  occupiedBy: '\u5360\u7528\u4eba',
+  changedFieldsPrefix: '\u4fee\u6539',
+  dirUploadScanning: '\u6b63\u5728\u89e3\u6790\u76ee\u5f55...',
+  dirUploadUploading: '\u6b63\u5728\u4e0a\u4f20\u76ee\u5f55...',
+  dirUploadSuccess: '\u76ee\u5f55\u4e0a\u4f20\u6210\u529f',
+  dropNothing: '\u672a\u8bc6\u522b\u5230\u53ef\u4e0a\u4f20\u7684\u6587\u4ef6\u6216\u76ee\u5f55',
+  fileUploadPreparing: '\u6b63\u5728\u4e0a\u4f20\u6587\u4ef6...',
+  uploadProgressSingle: '\u6587\u4ef6\u4e0a\u4f20\u8fdb\u5ea6',
+  uploadProgressDirectory: '\u76ee\u5f55\u4e0a\u4f20\u8fdb\u5ea6',
+  uploadedCountPrefix: '\u5df2\u4e0a\u4f20',
+  uploadedCountSep: '\u4e2a / \u603b\u5171',
+  currentFilePrefix: '\u5f53\u524d\u6587\u4ef6:',
+  cancelUpload: '\u53d6\u6d88\u4e0a\u4f20',
+  uploadCanceled: '\u5df2\u53d6\u6d88\u4e0a\u4f20',
+}
 
 const props = defineProps({ serverId: { type: Number, default: null } })
+const emit = defineEmits(['close', 'server-updated', 'open-edit'])
 
 const drawerVisible = computed({
   get: () => !!props.serverId,
   set: () => emit('close'),
 })
-const emit = defineEmits(['close', 'server-updated'])
 
 const activeTab = ref('detail')
 const detail = ref(null)
 const loadingDetail = ref(false)
-const initialLoading = ref(true)  // true 表示首次后台加载尚未完成
+const initialLoading = ref(true)
 const fetchingDetail = ref(false)
+const detailError = ref('')
+const detailNoteDraft = ref('')
+const savingDetailNote = ref(false)
+const serverIp = ref('')
+
 const entries = ref([])
 const loading = ref(false)
 const currentPath = ref('/')
+const pathEditing = ref(false)
+const pathDraft = ref('/')
+const pathInputRef = ref(null)
 const selectedFile = ref(null)
 const uploadDialogVisible = ref(false)
 const uploadRemotePath = ref('')
 const uploadFileBase64 = ref(null)
 const uploadFileName = ref('')
 const uploading = ref(false)
-const serverIp = ref('')
+const dragOverActive = ref(false)
+const uploadProgress = ref({
+  visible: false,
+  label: '',
+  completed: 0,
+  total: 0,
+  currentName: '',
+})
+const currentUploadController = ref(null)
+const uploadCanceled = ref(false)
+
 const logs = ref([])
 const loadingLogs = ref(false)
 const logOffset = ref(0)
 const logTotal = ref(0)
-const detailNoteDraft = ref('')
-const savingDetailNote = ref(false)
 
-// ── Detail load ─────────────────────────────────────────────────────────────────
-
-// 模块级缓存：serverId -> { detail, timestamp }
 const detailCache = new Map()
-const CACHE_TTL = 60_000  // 60 秒
 
-watch(() => props.serverId, async (id) => {
-  if (!id) return
-  entries.value = []
-  currentPath.value = '/'
-  selectedFile.value = null
-  activeTab.value = 'detail'
+function getPathStorageKey(serverId) {
+  const userId = localStorage.getItem('user_id') || 'anonymous'
+  return `server-file-path:${userId}:${serverId}`
+}
 
-  // 优先用缓存（不等待）
-  const cached = detailCache.get(id)
-  if (cached) {
-    detail.value = cached.detail
-    detailNoteDraft.value = cached.detail.detail_note || ''
-    serverIp.value = cached.detail.ip
-    initialLoading.value = false
-  } else {
-    initialLoading.value = true
-  }
+function getRememberedPath(serverId) {
+  if (!serverId) return '/'
+  return localStorage.getItem(getPathStorageKey(serverId)) || '/'
+}
 
-  // 静默后台刷新
-  try {
-    const data = await serverApi.fetchDetail(id)
-    detail.value = data
-    detailNoteDraft.value = data.detail_note || ''
-    serverIp.value = data.ip
-    detailCache.set(id, { detail: data, timestamp: Date.now() })
-  } catch {
-    if (!cached) {
-      ElMessage.error('加载失败')
+function rememberPath(serverId, path) {
+  if (!serverId || !path) return
+  localStorage.setItem(getPathStorageKey(serverId), path)
+}
+
+watch(
+  () => props.serverId,
+  async (id) => {
+    if (!id) return
+    entries.value = []
+    currentPath.value = getRememberedPath(id)
+    pathDraft.value = currentPath.value
+    selectedFile.value = null
+    activeTab.value = 'detail'
+    detailError.value = ''
+
+    const cached = detailCache.get(id)
+    if (cached) {
+      detail.value = cached.detail
+      detailNoteDraft.value = cached.detail.detail_note || ''
+      serverIp.value = cached.detail.ip
+      initialLoading.value = false
+    } else {
+      detail.value = null
+      initialLoading.value = true
     }
-  } finally {
-    initialLoading.value = false
-  }
-}, { immediate: true })
 
-async function loadDetail() {
-  loadingDetail.value = true
-  try {
-    detail.value = await serverApi.fetchDetail(props.serverId)
-    detailNoteDraft.value = detail.value.detail_note || ''
-    serverIp.value = detail.value.ip
-  } catch (e) {
-    ElMessage.error('加载失败')
-  } finally {
-    loadingDetail.value = false
+    try {
+      const basic = await serverApi.get(id)
+      detail.value = mergeServerDetail(detail.value, basic)
+      detailNoteDraft.value = detail.value.detail_note || ''
+      serverIp.value = detail.value.ip
+    } catch {
+      if (!cached) ElMessage.error(text.loadFailed)
+      initialLoading.value = false
+      return
+    }
+
+    try {
+      const fetched = await serverApi.fetchDetail(id)
+      detail.value = mergeServerDetail(detail.value, fetched)
+      detailNoteDraft.value = detail.value.detail_note || ''
+      serverIp.value = detail.value.ip
+      detailCache.set(id, { detail: detail.value, timestamp: Date.now() })
+    } catch (e) {
+      detailError.value = e.response?.data?.detail || text.fetchFailed
+      if (!cached) ElMessage.warning(detailError.value)
+    } finally {
+      initialLoading.value = false
+    }
+  },
+  { immediate: true },
+)
+
+function mergeServerDetail(current, incoming) {
+  return {
+    ...current,
+    ...incoming,
+    interfaces: incoming?.interfaces ?? current?.interfaces ?? [],
+    cached_at: incoming?.cached_at ?? current?.cached_at ?? null,
   }
 }
 
 async function fetchDetail() {
   fetchingDetail.value = true
+  detailError.value = ''
   try {
-    detail.value = await serverApi.fetchDetail(props.serverId, true)
+    const fetched = await serverApi.fetchDetail(props.serverId, true)
+    detail.value = mergeServerDetail(detail.value, fetched)
     detailNoteDraft.value = detail.value.detail_note || ''
     detailCache.set(props.serverId, { detail: detail.value, timestamp: Date.now() })
-    ElMessage.success('采集成功')
-    if (activeTab.value === 'logs') {
-      await loadLogs()
-    }
+    ElMessage.success(text.fetchSuccess)
+    if (activeTab.value === 'logs') await loadLogs()
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || '采集失败')
+    detailError.value = e.response?.data?.detail || text.fetchFailed
+    ElMessage.error(detailError.value)
   } finally {
     fetchingDetail.value = false
   }
@@ -298,15 +501,16 @@ async function fetchDetail() {
 async function checkStatus() {
   try {
     const result = await serverApi.checkStatus(props.serverId)
+    if (!detail.value) {
+      detail.value = mergeServerDetail(detail.value, await serverApi.get(props.serverId))
+    }
     detail.value.is_online = result.online
     detailCache.set(props.serverId, { detail: detail.value, timestamp: Date.now() })
     emit('server-updated')
-    ElMessage.success(`${detail.value.ip}: ${result.online ? '在线' : '离线'}`)
-    if (activeTab.value === 'logs') {
-      await loadLogs()
-    }
+    ElMessage.success(`${detail.value.ip}: ${result.online ? text.online : text.offline}`)
+    if (activeTab.value === 'logs') await loadLogs()
   } catch {
-    ElMessage.error('检测失败')
+    ElMessage.error(text.statusFailed)
   }
 }
 
@@ -317,9 +521,9 @@ async function saveDetailNote() {
     const updated = await serverApi.update(props.serverId, { detail_note: detailNoteDraft.value })
     detail.value = { ...detail.value, detail_note: updated.detail_note }
     detailCache.set(props.serverId, { detail: detail.value, timestamp: Date.now() })
-    ElMessage.success('详情记录已保存')
+    ElMessage.success(text.detailNoteSaved)
   } catch (e) {
-    ElMessage.error(e.response?.data?.detail || '保存详情记录失败')
+    ElMessage.error(e.response?.data?.detail || text.detailNoteSaveFailed)
   } finally {
     savingDetailNote.value = false
   }
@@ -332,15 +536,17 @@ function openEdit() {
 
 async function deleteServer() {
   try {
-    await ElMessageBox.confirm('删除该服务器？此操作不可恢复。', '确认删除', { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' })
+    await ElMessageBox.confirm(text.deleteConfirm, text.deleteConfirmTitle, {
+      type: 'warning',
+      confirmButtonText: text.delete,
+      cancelButtonText: text.cancel,
+    })
     await serverApi.delete(props.serverId)
-    ElMessage.success('已删除')
+    ElMessage.success(text.deleted)
     emit('close')
     emit('server-updated')
   } catch {}
 }
-
-// ── File Browser ─────────────────────────────────────────────────────────────────
 
 async function loadDir(path) {
   if (!props.serverId) return
@@ -350,9 +556,11 @@ async function loadDir(path) {
     const data = await filesApi.list(props.serverId, path)
     entries.value = data.entries
     currentPath.value = data.path
+    pathDraft.value = data.path
+    rememberPath(props.serverId, data.path)
     selectedFile.value = null
   } catch (e) {
-    ElMessage.error('读取目录失败: ' + (e.response?.data?.detail || e.message))
+    ElMessage.error(`${text.readDirFailed}: ${e.response?.data?.detail || e.message}`)
   } finally {
     loading.value = false
   }
@@ -363,20 +571,38 @@ const pathSegments = computed(() => {
   return currentPath.value.split('/').filter(Boolean)
 })
 
-function navigateRoot() { loadDir('/') }
+async function refresh() {
+  await loadDir(currentPath.value)
+}
+
+function navigateRoot() {
+  loadDir('/')
+}
+
 function goUp() {
   if (currentPath.value === '/') return
   const parts = currentPath.value.split('/').filter(Boolean)
   parts.pop()
-  loadDir(parts.length ? '/' + parts.join('/') : '/')
+  loadDir(parts.length ? `/${parts.join('/')}` : '/')
 }
+
 function navigateToSeg(idx) {
   if (currentPath.value === '/') return
   const parts = currentPath.value.split('/').filter(Boolean)
-  const target = '/' + parts.slice(0, idx + 1).join('/')
+  loadDir(`/${parts.slice(0, idx + 1).join('/')}`)
+}
+
+function startEditPath() {
+  pathDraft.value = currentPath.value || '/'
+  pathEditing.value = true
+  queueMicrotask(() => pathInputRef.value?.focus?.())
+}
+
+function submitPathDraft() {
+  const target = (pathDraft.value || '/').trim() || '/'
+  pathEditing.value = false
   loadDir(target)
 }
-function refresh() { loadDir(currentPath.value) }
 
 function onRowClick(row) {
   if (row.type === 'directory') {
@@ -385,29 +611,26 @@ function onRowClick(row) {
   }
   selectedFile.value = row.type === 'file' ? row : null
 }
+
 function onRowDblClick(row) {
-  if (row.type === 'directory') {
-    return
-  } else {
-    downloadFile(row.path)
-  }
+  if (row.type === 'directory') return
+  downloadFile(row.path)
 }
 
 function downloadFile(path) {
   const url = filesApi.downloadUrl(props.serverId, path)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = path.split('/').pop()
-  a.click()
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = path.split('/').pop()
+  anchor.click()
 }
+
 function downloadSelected() {
-  if (selectedFile.value) downloadFile(selectedFile.value)
+  if (selectedFile.value) downloadFile(selectedFile.value.path)
 }
 
 watch(activeTab, (tab) => {
-  if (tab === 'files' && entries.value.length === 0) {
-    loadDir('/')
-  }
+  if (tab === 'files' && entries.value.length === 0) loadDir(currentPath.value || '/')
   if (tab === 'logs') {
     logOffset.value = 0
     logs.value = []
@@ -416,51 +639,292 @@ watch(activeTab, (tab) => {
 })
 
 function showUploadDialog() {
-  uploadRemotePath.value = currentPath.value === '/' ? '/' : currentPath.value + '/'
+  uploadRemotePath.value = currentPath.value === '/' ? '/' : `${currentPath.value}/`
   uploadFileBase64.value = null
   uploadFileName.value = ''
   uploadDialogVisible.value = true
 }
 
-function onFileSelected(e) {
-  const file = e.target.files[0]
+function onFileSelected(event) {
+  const file = event.target.files[0]
   if (!file) return
+  prepareUploadFile(file)
+}
+
+function prepareUploadFile(file, remotePath = null) {
   uploadFileName.value = file.name
+  uploadFileBase64.value = null
   const baseName = file.name.replace(/\\/g, '/').split('/').pop()
-  uploadRemotePath.value = (currentPath.value === '/' ? '' : currentPath.value) + '/' + baseName
+  uploadRemotePath.value = remotePath || `${currentPath.value === '/' ? '' : currentPath.value}/${baseName}`
   const reader = new FileReader()
-  reader.onload = (ev) => {
-    uploadFileBase64.value = ev.target.result.split(',')[1]
+  reader.onload = (event) => {
+    uploadFileBase64.value = event.target.result.split(',')[1]
   }
   reader.readAsDataURL(file)
 }
 
+function beginUploadProgress(label, total) {
+  currentUploadController.value = new AbortController()
+  uploadCanceled.value = false
+  uploadProgress.value = {
+    visible: true,
+    label,
+    completed: 0,
+    total,
+    currentName: '',
+  }
+}
+
+function updateUploadProgress(completed, currentName = uploadProgress.value.currentName) {
+  uploadProgress.value = {
+    ...uploadProgress.value,
+    completed,
+    currentName,
+  }
+}
+
+function finishUploadProgress() {
+  currentUploadController.value = null
+  uploadCanceled.value = false
+  uploadProgress.value = {
+    visible: false,
+    label: '',
+    completed: 0,
+    total: 0,
+    currentName: '',
+  }
+}
+
+function cancelCurrentUpload() {
+  uploadCanceled.value = true
+  currentUploadController.value?.abort()
+}
+
+function getUploadRequestConfig() {
+  return currentUploadController.value ? { signal: currentUploadController.value.signal } : {}
+}
+
+function isCanceledError(error) {
+  return error?.code === 'ERR_CANCELED' || error?.name === 'CanceledError' || uploadCanceled.value
+}
+
+function ensureUploadNotCanceled() {
+  if (uploadCanceled.value) {
+    throw new Error(text.uploadCanceled)
+  }
+}
+
+function readFileAsBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = (event) => resolve(event.target.result.split(',')[1])
+    reader.onerror = () => reject(new Error(text.readFileFailed))
+    reader.readAsDataURL(file)
+  })
+}
+
 async function doUpload() {
   if (!uploadFileBase64.value) {
-    ElMessage.warning('请先选择文件')
+    ElMessage.warning(text.chooseFileFirst)
     return
   }
   uploading.value = true
+  beginUploadProgress(text.uploadProgressSingle, 1)
+  updateUploadProgress(0, uploadFileName.value || uploadRemotePath.value.split('/').pop() || '')
+  ElMessage.info(text.fileUploadPreparing)
   try {
-    await filesApi.upload(props.serverId, uploadRemotePath.value, uploadFileBase64.value)
-    ElMessage.success('上传成功')
+    await filesApi.upload(props.serverId, uploadRemotePath.value, uploadFileBase64.value, getUploadRequestConfig())
+    updateUploadProgress(1, uploadFileName.value || uploadRemotePath.value.split('/').pop() || '')
     uploadDialogVisible.value = false
-    refresh()
+    await refresh()
+    ElMessage.success(text.uploadSuccess)
   } catch (e) {
-    ElMessage.error('上传失败: ' + (e.response?.data?.detail || e.message))
+    if (isCanceledError(e)) {
+      ElMessage.info(text.uploadCanceled)
+    } else {
+      ElMessage.error(`${text.uploadFailed}: ${e.response?.data?.detail || e.message}`)
+    }
   } finally {
     uploading.value = false
+    window.setTimeout(finishUploadProgress, 800)
+  }
+}
+
+function joinRemotePath(base, name) {
+  const cleanBase = base === '/' ? '' : (base || '').replace(/\/+$/, '')
+  const cleanName = (name || '').replace(/^\/+/, '')
+  return `${cleanBase}/${cleanName}` || '/'
+}
+
+function getEntryFile(entry) {
+  return new Promise((resolve, reject) => entry.file(resolve, reject))
+}
+
+function readDirectoryEntries(reader) {
+  return new Promise((resolve, reject) => {
+    const allEntries = []
+    const readBatch = () => {
+      reader.readEntries((entries) => {
+        if (!entries.length) {
+          resolve(allEntries)
+          return
+        }
+        allEntries.push(...entries)
+        readBatch()
+      }, reject)
+    }
+    readBatch()
+  })
+}
+
+async function flattenDroppedEntry(entry, parentPath = '') {
+  if (entry.isFile) {
+    const file = await getEntryFile(entry)
+    return [{
+      kind: 'file',
+      relativePath: parentPath ? `${parentPath}/${file.name}` : file.name,
+      file,
+    }]
+  }
+
+  if (!entry.isDirectory) return []
+
+  const dirPath = parentPath ? `${parentPath}/${entry.name}` : entry.name
+  const flattened = [{ kind: 'dir', relativePath: dirPath }]
+  const reader = entry.createReader()
+  const children = await readDirectoryEntries(reader)
+  for (const child of children) {
+    flattened.push(...await flattenDroppedEntry(child, dirPath))
+  }
+  return flattened
+}
+
+async function uploadDroppedFile(file) {
+  const remotePath = `${currentPath.value === '/' ? '' : currentPath.value}/${file.name}`
+  uploading.value = true
+  beginUploadProgress(text.uploadProgressSingle, 1)
+  updateUploadProgress(0, file.name)
+  ElMessage.info(text.fileUploadPreparing)
+  try {
+    const content = await readFileAsBase64(file)
+    ensureUploadNotCanceled()
+    await filesApi.upload(props.serverId, remotePath, content, getUploadRequestConfig())
+    updateUploadProgress(1, file.name)
+    await refresh()
+    ElMessage.success(text.uploadSuccess)
+  } catch (e) {
+    if (isCanceledError(e)) {
+      ElMessage.info(text.uploadCanceled)
+    } else {
+      ElMessage.error(`${text.uploadFailed}: ${e.response?.data?.detail || e.message}`)
+    }
+  } finally {
+    uploading.value = false
+    window.setTimeout(finishUploadProgress, 800)
+  }
+}
+
+async function uploadDroppedDirectory(items) {
+  ElMessage.info(text.dirUploadScanning)
+  const flattened = []
+  for (const item of items) {
+    const entry = item.webkitGetAsEntry?.()
+    if (entry) flattened.push(...await flattenDroppedEntry(entry))
+  }
+
+  if (!flattened.length) {
+    ElMessage.warning(text.dropNothing)
+    return
+  }
+
+  uploading.value = true
+  beginUploadProgress(text.uploadProgressDirectory, flattened.filter((item) => item.kind === 'file').length)
+  ElMessage.info(text.dirUploadUploading)
+  try {
+    const dirs = flattened.filter((item) => item.kind === 'dir').sort((a, b) => a.relativePath.length - b.relativePath.length)
+    const files = flattened.filter((item) => item.kind === 'file')
+    let completed = 0
+
+    for (const dir of dirs) {
+      ensureUploadNotCanceled()
+      await filesApi.mkdir(props.serverId, joinRemotePath(currentPath.value, dir.relativePath), getUploadRequestConfig())
+    }
+    for (const item of files) {
+      ensureUploadNotCanceled()
+      updateUploadProgress(completed, item.relativePath)
+      const content = await readFileAsBase64(item.file)
+      ensureUploadNotCanceled()
+      await filesApi.upload(
+        props.serverId,
+        joinRemotePath(currentPath.value, item.relativePath),
+        content,
+        getUploadRequestConfig(),
+      )
+      completed += 1
+      updateUploadProgress(completed, item.relativePath)
+    }
+
+    await refresh()
+    ElMessage.success(`${text.dirUploadSuccess} (${files.length})`)
+  } catch (e) {
+    if (isCanceledError(e)) {
+      ElMessage.info(text.uploadCanceled)
+    } else {
+      ElMessage.error(e.response?.data?.detail || e.message || text.uploadFailed)
+    }
+  } finally {
+    uploading.value = false
+    window.setTimeout(finishUploadProgress, 800)
+  }
+}
+
+function onTableDragOver() {
+  dragOverActive.value = true
+}
+
+function onTableDragLeave() {
+  dragOverActive.value = false
+}
+
+async function onTableDrop(event) {
+  dragOverActive.value = false
+  const items = Array.from(event.dataTransfer?.items || [])
+  const hasDirectory = items.some((item) => item.webkitGetAsEntry?.()?.isDirectory)
+  if (hasDirectory) {
+    await uploadDroppedDirectory(items)
+    return
+  }
+
+  const file = event.dataTransfer?.files?.[0]
+  if (!file) return
+  await uploadDroppedFile(file)
+}
+
+async function createFolder() {
+  try {
+    const { value } = await ElMessageBox.prompt(text.createFolderPrompt, text.createFolderTitle, {
+      confirmButtonText: text.create,
+      cancelButtonText: text.cancel,
+      inputValue: currentPath.value === '/' ? '/' : `${currentPath.value}/`,
+    })
+    const target = (value || '').trim()
+    if (!target) return
+    await filesApi.mkdir(props.serverId, target)
+    await refresh()
+    ElMessage.success(text.folderCreated)
+  } catch (e) {
+    if (e !== 'cancel') {
+      ElMessage.error(e.response?.data?.detail || e.message || text.folderCreateFailed)
+    }
   }
 }
 
 function formatSize(bytes) {
-  if (bytes == null) return '—'
-  if (bytes < 1024) return bytes + ' B'
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
-  return (bytes / 1024 / 1024).toFixed(1) + ' MB'
+  if (bytes == null) return text.empty
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
-
-// ── Logs ─────────────────────────────────────────────────────────────────────────
 
 async function loadLogs() {
   if (!props.serverId) return
@@ -471,8 +935,8 @@ async function loadLogs() {
     const data = await logsApi.list(props.serverId, 200, 0)
     logs.value = data.logs
     logTotal.value = data.total
-  } catch (e) {
-    ElMessage.error('加载日志失败')
+  } catch {
+    ElMessage.error(text.loadLogsFailed)
   } finally {
     loadingLogs.value = false
   }
@@ -480,11 +944,11 @@ async function loadLogs() {
 
 async function clearLogs() {
   try {
-    await ElMessageBox.confirm('确定清空该服务器的所有日志？', '确认', { type: 'warning' })
+    await ElMessageBox.confirm(text.clearLogsConfirm, text.clearConfirmTitle, { type: 'warning' })
     await logsApi.clear(props.serverId)
     logs.value = []
     logTotal.value = 0
-    ElMessage.success('已清空')
+    ElMessage.success(text.logsCleared)
   } catch {}
 }
 
@@ -495,37 +959,37 @@ function logClass(log) {
 }
 
 function logTypeLabel(log) {
-  if (log.type === 'status_check') return '状态'
-  if (log.type === 'detail_fetch') return '详情'
-  if (log.type === 'server_create') return '创建'
-  if (log.type === 'server_delete') return '删除'
-  if (log.action === 'occupy') return '占用'
-  if (log.action === 'release') return '释放'
-  if (log.type === 'server_update') return '修改'
-  return log.type || '日志'
+  if (log.type === 'status_check') return text.logStatus
+  if (log.type === 'detail_fetch') return text.logDetail
+  if (log.type === 'server_create') return text.logCreate
+  if (log.type === 'server_delete') return text.logDelete
+  if (log.action === 'occupy') return text.logOccupy
+  if (log.action === 'release') return text.logRelease
+  if (log.type === 'server_update') return text.logUpdate
+  return log.type || text.logDefault
 }
 
 const logFieldLabels = {
-  ip: 'IP',
-  port: '端口',
-  os_type: '系统',
-  ssh_username: 'SSH账号',
-  ssh_password: 'SSH密码',
-  ssh_key_file: 'SSH密钥',
-  description: '备注',
-  detail_note: '详情记录',
-  tags: '标签',
+  ip: text.ip,
+  port: text.port,
+  os_type: text.os,
+  ssh_username: text.sshUsername,
+  ssh_password: text.sshPassword,
+  ssh_key_file: text.sshKeyFile,
+  description: text.description,
+  detail_note: text.detailNote,
+  tags: text.tags,
   bmc_ip: 'BMC IP',
-  bmc_username: 'BMC账号',
-  bmc_password: 'BMC密码',
-  occupied_by: '占用人',
+  bmc_username: text.bmcUsername,
+  bmc_password: text.bmcPassword,
+  occupied_by: text.occupiedBy,
 }
 
 function logChangeSummary(log) {
   if (!log.changes) return ''
   const fields = Object.keys(log.changes)
   if (!fields.length) return ''
-  return `修改 ${fields.map((field) => logFieldLabels[field] || field).join('、')}`
+  return `${text.changedFieldsPrefix} ${fields.map((field) => logFieldLabels[field] || field).join('\u3001')}`
 }
 
 function logInterfaces(log) {
@@ -557,22 +1021,174 @@ function logInterfaces(log) {
   flex-wrap: nowrap;
   overflow: hidden;
 }
-.home-btn { padding: 0 4px; }
-.breadcrumb-sep { color: #999; margin: 0 2px; user-select: none; }
-.breadcrumb-seg {
-  color: #409eff; cursor: pointer; padding: 2px 4px;
-  border-radius: 4px; white-space: nowrap; max-width: 120px;
-  overflow: hidden; text-overflow: ellipsis;
+
+.path-display {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  cursor: text;
 }
-.breadcrumb-seg:hover { background: #ecf5ff; text-decoration: underline; }
-.breadcrumb-seg.last { color: #333; cursor: default; font-weight: 500; }
-.breadcrumb-seg.last:hover { background: none; text-decoration: none; }
-.file-table { cursor: pointer; }
-.dir-name { color: #409eff; font-weight: 500; }
-.file-name { color: #333; }
-.file-size { color: #999; font-size: 12px; }
-.file-toolbar { display: flex; gap: 8px; margin-top: 10px; }
-.detail-actions { display: flex; gap: 8px; margin-top: 16px; }
+
+.path-input {
+  min-width: 180px;
+  flex: 1;
+}
+
+.breadcrumb-sep {
+  color: #999;
+  margin: 0 2px;
+  user-select: none;
+}
+
+.breadcrumb-seg {
+  color: #409eff;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  white-space: nowrap;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.breadcrumb-seg:hover {
+  background: #ecf5ff;
+  text-decoration: underline;
+}
+
+.breadcrumb-seg.last {
+  color: #333;
+  cursor: default;
+  font-weight: 500;
+}
+
+.breadcrumb-seg.last:hover {
+  background: none;
+  text-decoration: none;
+}
+
+.file-table {
+  cursor: pointer;
+}
+
+.file-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 420px;
+  height: calc(100vh - 220px);
+}
+
+.file-table-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding-bottom: 12px;
+}
+
+.file-floating-bar {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 10px 12px;
+  padding-bottom: max(10px, env(safe-area-inset-bottom));
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+}
+
+.dir-name {
+  color: #409eff;
+  font-weight: 500;
+}
+
+.file-name {
+  color: #333;
+}
+
+.file-table {
+  height: 100%;
+}
+
+.file-size {
+  color: #999;
+  font-size: 12px;
+}
+
+.file-toolbar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.upload-progress {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #f5f7fa;
+  color: #606266;
+  font-size: 13px;
+}
+
+.upload-progress-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+
+.upload-progress-label {
+  font-weight: 500;
+}
+
+.upload-progress-file {
+  color: #909399;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 520px;
+}
+
+.upload-progress-count {
+  color: #409eff;
+  font-variant-numeric: tabular-nums;
+  margin-left: 12px;
+  white-space: nowrap;
+}
+
+.upload-progress-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 12px;
+}
+
+.drop-overlay {
+  margin-top: 10px;
+  padding: 18px 16px;
+  border: 1px dashed #67c23a;
+  border-radius: 8px;
+  background: #f0f9eb;
+  color: #67c23a;
+  text-align: center;
+  font-size: 13px;
+}
+
+.detail-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+
 .detail-note-panel {
   margin-top: 16px;
   padding: 12px;
@@ -580,6 +1196,7 @@ function logInterfaces(log) {
   border-radius: 8px;
   background: #fafafa;
 }
+
 .detail-note-header {
   display: flex;
   justify-content: space-between;
@@ -589,16 +1206,30 @@ function logInterfaces(log) {
   font-weight: 600;
 }
 
-/* Log tab */
-.log-toolbar { display: flex; gap: 8px; margin-bottom: 10px; }
+.log-toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
 .log-container {
   border: 1px solid #ebeef5;
   border-radius: 6px;
   max-height: 400px;
   overflow-y: auto;
 }
-.log-empty { padding: 24px; text-align: center; color: #999; }
-.log-list { font-family: 'Consolas', monospace; font-size: 12px; }
+
+.log-empty {
+  padding: 24px;
+  text-align: center;
+  color: #999;
+}
+
+.log-list {
+  font-family: 'Consolas', monospace;
+  font-size: 12px;
+}
+
 .log-line {
   display: flex;
   align-items: center;
@@ -607,16 +1238,49 @@ function logInterfaces(log) {
   border-bottom: 1px solid #f0f0f0;
   flex-wrap: wrap;
 }
-.log-line:last-child { border-bottom: none; }
-.log-offline-row { background: #fff5f5; }
-.log-error-row { background: #fff0f0; }
-.log-time { color: #999; white-space: nowrap; }
-.log-type { color: #409eff; font-weight: 500; }
-.log-status { font-size: 12px; }
-.log-status.online { color: #67c23a; }
-.log-status.offline { color: #f56c6c; }
-.log-info { color: #666; }
-.log-error { color: #f56c6c; }
+
+.log-line:last-child {
+  border-bottom: none;
+}
+
+.log-offline-row {
+  background: #fff5f5;
+}
+
+.log-error-row {
+  background: #fff0f0;
+}
+
+.log-time {
+  color: #999;
+  white-space: nowrap;
+}
+
+.log-type {
+  color: #409eff;
+  font-weight: 500;
+}
+
+.log-status {
+  font-size: 12px;
+}
+
+.log-status.online {
+  color: #67c23a;
+}
+
+.log-status.offline {
+  color: #f56c6c;
+}
+
+.log-info {
+  color: #666;
+}
+
+.log-error {
+  color: #f56c6c;
+}
+
 .log-interfaces {
   width: 100%;
   margin-top: 4px;
@@ -627,16 +1291,19 @@ function logInterfaces(log) {
   color: #4b5563;
   line-height: 1.7;
 }
+
 .log-interfaces-title {
   margin-bottom: 4px;
   color: #303133;
   font-weight: 600;
 }
+
 .log-interface-item {
   display: flex;
   flex-wrap: wrap;
   gap: 6px 10px;
 }
+
 .iface-name {
   min-width: 90px;
   color: #2563eb;
