@@ -28,7 +28,7 @@
             <el-descriptions-item label="采集时间">{{ detail.cached_at || '—' }}</el-descriptions-item>
           </el-descriptions>
 
-          <el-divider>网卡</el-divider>
+          <el-divider v-if="detail.interfaces?.length">网卡</el-divider>
           <el-table v-if="detail.interfaces?.length" :data="detail.interfaces" size="small" max-height="200">
             <el-table-column prop="name" label="网卡" width="90" />
             <el-table-column prop="ip" label="IP" min-width="120" />
@@ -38,17 +38,18 @@
             <el-table-column prop="speed" label="速率" width="80" />
           </el-table>
           <el-empty v-else description="暂无网卡信息" />
-
-          <div class="detail-actions">
-            <el-button type="primary" size="small" @click="fetchDetail" :loading="fetchingDetail">
-              <el-icon><Refresh /></el-icon> 重新采集
-            </el-button>
-            <el-button size="small" @click="checkStatus">检测状态</el-button>
-            <el-button size="small" @click="openEdit">编辑</el-button>
-            <el-button size="small" type="danger" @click="deleteSwitch">删除</el-button>
-          </div>
         </template>
+
         <el-empty v-else-if="initialLoading" description="加载中…" />
+
+        <div class="detail-actions">
+          <el-button type="primary" size="small" @click="fetchDetail" :loading="fetchingDetail">
+            <el-icon><Refresh /></el-icon> 重新采集
+          </el-button>
+          <el-button size="small" @click="checkStatus">检测状态</el-button>
+          <el-button size="small" @click="openEdit">编辑</el-button>
+          <el-button size="small" type="danger" @click="deleteSwitch">删除</el-button>
+        </div>
       </el-tab-pane>
 
       <!-- ── 日志 ──────────────────────────────────────────── -->
@@ -125,6 +126,7 @@ watch(() => props.switchId, async (id) => {
     initialLoading.value = false
   } else {
     initialLoading.value = true
+    detail.value = null
   }
 
   try {
@@ -132,13 +134,12 @@ watch(() => props.switchId, async (id) => {
     detail.value = data
     switchName.value = data.name
     detailCache.set(id, { detail: data, timestamp: Date.now() })
-    // 加载关联服务器
     try {
       assocServers.value = await switchApi.getServers(id)
     } catch {
       assocServers.value = []
     }
-  } catch {
+  } catch (e) {
     if (!cached) ElMessage.error('加载详情失败')
   } finally {
     initialLoading.value = false
