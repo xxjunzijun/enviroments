@@ -10,10 +10,13 @@
   <div v-else class="app-shell">
 
     <!-- Sidebar -->
-    <aside class="sidebar">
+    <aside class="sidebar" :class="{ collapsed: sidebarCollapsed }">
       <div class="sidebar-logo">
-        <span class="logo-icon">🖥</span>
-        <span class="logo-text">Enviroments</span>
+        <button class="collapse-btn" @click="sidebarCollapsed = !sidebarCollapsed" :title="sidebarCollapsed ? '展开侧边栏' : '收起侧边栏'">
+          {{ sidebarCollapsed ? '☰' : '✕' }}
+        </button>
+        <span v-if="!sidebarCollapsed" class="logo-icon">🖥</span>
+        <span v-if="!sidebarCollapsed" class="logo-text">Enviroments</span>
       </div>
 
       <nav class="sidebar-nav">
@@ -21,27 +24,39 @@
           class="nav-item"
           :class="{ active: activeTab === 'servers' }"
           @click="activeTab = 'servers'"
+          :title="sidebarCollapsed ? '服务器' : ''"
         >
           <span class="nav-icon">🖧</span>
-          <span>服务器</span>
-          <span v-if="serverOnlineCount" class="nav-badge">{{ serverOnlineCount }}</span>
+          <span v-if="!sidebarCollapsed">服务器</span>
+          <span v-if="!sidebarCollapsed && serverOnlineCount" class="nav-badge">{{ serverOnlineCount }}</span>
         </button>
 
         <button
           class="nav-item"
           :class="{ active: activeTab === 'switches' }"
           @click="activeTab = 'switches'"
+          :title="sidebarCollapsed ? '交换机' : ''"
         >
           <span class="nav-icon">🔌</span>
-          <span>交换机</span>
-          <span v-if="switchOnlineCount" class="nav-badge">{{ switchOnlineCount }}</span>
+          <span v-if="!sidebarCollapsed">交换机</span>
+          <span v-if="!sidebarCollapsed && switchOnlineCount" class="nav-badge">{{ switchOnlineCount }}</span>
+        </button>
+
+        <button
+          class="nav-item"
+          :class="{ active: activeTab === 'favorites' }"
+          @click="activeTab = 'favorites'"
+          :title="sidebarCollapsed ? '我的收藏' : ''"
+        >
+          <span class="nav-icon">⭐</span>
+          <span v-if="!sidebarCollapsed">我的收藏</span>
         </button>
       </nav>
 
       <div class="sidebar-footer">
         <div class="user-block">
           <span class="user-avatar">👤</span>
-          <div class="user-info">
+          <div v-if="!sidebarCollapsed" class="user-info">
             <span class="user-name">{{ username }}</span>
             <span class="user-role">管理员</span>
           </div>
@@ -51,12 +66,12 @@
     </aside>
 
     <!-- Main -->
-    <div class="main-area">
+    <div class="main-area" :style="{ marginLeft: sidebarCollapsed ? '58px' : '220px' }">
       <!-- Top bar -->
       <header class="topbar">
         <div class="topbar-title">
-          <h1>{{ activeTab === 'servers' ? '服务器列表' : '交换机列表' }}</h1>
-          <span class="topbar-sub">{{ activeTab === 'servers' ? `共 ${serverTotal} 台` : `共 ${switchTotal} 台` }}</span>
+          <h1>{{ tabTitle }}</h1>
+          <span class="topbar-sub">{{ tabSubtitle }}</span>
         </div>
 
         <!-- Stats -->
@@ -80,8 +95,12 @@
       <!-- Content -->
       <main class="content">
         <div class="fade-in">
+          <ServerFavorites
+            v-if="activeTab === 'favorites'"
+            @stats="onFavoritesStats"
+          />
           <ServerList
-            v-if="activeTab === 'servers'"
+            v-else-if="activeTab === 'servers'"
             @stats="onServerStats"
           />
           <SwitchList
@@ -96,8 +115,9 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import ServerList from './views/ServerList.vue'
+import ServerFavorites from './views/ServerFavorites.vue'
 import SwitchList from './views/SwitchList.vue'
 import StandaloneSSH from './views/StandaloneSSH.vue'
 
@@ -105,14 +125,29 @@ const activeTab = ref('servers')
 const username = ref(localStorage.getItem('username') || '')
 const sshRoute = ref(null)
 const isDark = ref(localStorage.getItem('theme') !== 'light')
-
-// Stats
+const sidebarCollapsed = ref(localStorage.getItem('sidebar') === 'collapsed')
 const serverTotal = ref(0)
 const serverOnlineCount = ref(0)
 const serverOfflineCount = ref(0)
 const switchTotal = ref(0)
 const switchOnlineCount = ref(0)
 const switchOfflineCount = ref(0)
+const favoriteTotal = ref(0)
+const favoriteOnlineCount = ref(0)
+
+const tabTitle = computed(() => {
+  if (activeTab.value === 'servers') return '服务器列表'
+  if (activeTab.value === 'switches') return '交换机列表'
+  if (activeTab.value === 'favorites') return '我的收藏'
+  return 'Enviroments'
+})
+
+const tabSubtitle = computed(() => {
+  if (activeTab.value === 'servers') return `共 ${serverTotal.value} 台`
+  if (activeTab.value === 'switches') return `共 ${switchTotal.value} 台`
+  if (activeTab.value === 'favorites') return `共 ${favoriteTotal.value} 台收藏`
+  return ''
+})
 
 function onServerStats(stats) {
   serverTotal.value = stats.total || 0
@@ -124,6 +159,11 @@ function onSwitchStats(stats) {
   switchTotal.value = stats.total || 0
   switchOnlineCount.value = stats.online || 0
   switchOfflineCount.value = stats.offline || 0
+}
+
+function onFavoritesStats(stats) {
+  favoriteTotal.value = stats.total || 0
+  favoriteOnlineCount.value = stats.online || 0
 }
 
 function logout() {
@@ -138,6 +178,10 @@ function toggleTheme() {
   localStorage.setItem('theme', isDark.value ? 'dark' : 'light')
   document.documentElement.setAttribute('data-theme', isDark.value ? 'dark' : 'light')
 }
+
+watch(sidebarCollapsed, (val) => {
+  localStorage.setItem('sidebar', val ? 'collapsed' : 'expanded')
+})
 
 function parseHash() {
   const hash = window.location.hash
@@ -179,15 +223,37 @@ window.addEventListener('hashchange', () => { sshRoute.value = parseHash() })
   left: 0;
   bottom: 0;
   z-index: 10;
+  transition: width 0.25s ease;
+  overflow: hidden;
+}
+
+.sidebar.collapsed {
+  width: 58px;
 }
 
 .sidebar-logo {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 20px 18px;
+  padding: 20px 14px;
   border-bottom: 1px solid var(--border);
+  min-height: 64px;
+  overflow: hidden;
 }
+
+.collapse-btn {
+  font-size: 16px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: var(--transition);
+  flex-shrink: 0;
+  line-height: 1;
+}
+.collapse-btn:hover { color: var(--text-primary); background: var(--bg-hover); }
 
 .logo-icon { font-size: 22px; }
 
@@ -311,7 +377,6 @@ window.addEventListener('hashchange', () => { sshRoute.value = parseHash() })
 /* ─── Main Area ────────────────────────────────────────────────────────────── */
 
 .main-area {
-  margin-left: 220px;
   flex: 1;
   display: flex;
   flex-direction: column;
