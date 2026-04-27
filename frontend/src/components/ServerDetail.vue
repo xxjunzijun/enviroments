@@ -1015,7 +1015,7 @@ function logInterfaces(log) {
   gap: 2px;
   margin-bottom: 10px;
   padding: 6px 10px;
-  background: #f5f7fa;
+  background: var(--bg-hover);
   border-radius: 6px;
   font-size: 13px;
   flex-wrap: nowrap;
@@ -1037,13 +1037,13 @@ function logInterfaces(log) {
 }
 
 .breadcrumb-sep {
-  color: #999;
+  color: var(--text-muted);
   margin: 0 2px;
   user-select: none;
 }
 
 .breadcrumb-seg {
-  color: #409eff;
+  color: var(--accent);
   cursor: pointer;
   padding: 2px 4px;
   border-radius: 4px;
@@ -1054,12 +1054,12 @@ function logInterfaces(log) {
 }
 
 .breadcrumb-seg:hover {
-  background: #ecf5ff;
+  background: var(--accent-glow);
   text-decoration: underline;
 }
 
 .breadcrumb-seg.last {
-  color: #333;
+  color: var(--text-primary);
   cursor: default;
   font-weight: 500;
 }
@@ -1096,20 +1096,20 @@ function logInterfaces(log) {
   margin-top: 8px;
   padding: 10px 12px;
   padding-bottom: max(10px, env(safe-area-inset-bottom));
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--border);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.96);
+  background: var(--bg-card);
   backdrop-filter: blur(10px);
-  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+  box-shadow: var(--shadow-md);
 }
 
 .dir-name {
-  color: #409eff;
+  color: var(--accent);
   font-weight: 500;
 }
 
 .file-name {
-  color: #333;
+  color: var(--text-primary);
 }
 
 .file-table {
@@ -1117,7 +1117,7 @@ function logInterfaces(log) {
 }
 
 .file-size {
-  color: #999;
+  color: var(--text-muted);
   font-size: 12px;
 }
 
@@ -1133,8 +1133,8 @@ function logInterfaces(log) {
   justify-content: space-between;
   padding: 8px 10px;
   border-radius: 6px;
-  background: #f5f7fa;
-  color: #606266;
+  background: var(--bg-hover);
+  color: var(--text-primary);
   font-size: 13px;
 }
 
@@ -1150,7 +1150,7 @@ function logInterfaces(log) {
 }
 
 .upload-progress-file {
-  color: #909399;
+  color: var(--text-muted);
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1159,7 +1159,7 @@ function logInterfaces(log) {
 }
 
 .upload-progress-count {
-  color: #409eff;
+  color: var(--accent);
   font-variant-numeric: tabular-nums;
   margin-left: 12px;
   white-space: nowrap;
@@ -1175,10 +1175,10 @@ function logInterfaces(log) {
 .drop-overlay {
   margin-top: 10px;
   padding: 18px 16px;
-  border: 1px dashed #67c23a;
+  border: 1px dashed var(--accent);
   border-radius: 8px;
-  background: #f0f9eb;
-  color: #67c23a;
+  background: var(--accent-glow);
+  color: var(--accent);
   text-align: center;
   font-size: 13px;
 }
@@ -1192,9 +1192,9 @@ function logInterfaces(log) {
 .detail-note-panel {
   margin-top: 16px;
   padding: 12px;
-  border: 1px solid #ebeef5;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: #fafafa;
+  background: var(--bg-surface);
 }
 
 .detail-note-header {
@@ -1202,7 +1202,7 @@ function logInterfaces(log) {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 8px;
-  color: #303133;
+  color: var(--text-primary);
   font-weight: 600;
 }
 
@@ -1213,7 +1213,7 @@ function logInterfaces(log) {
 }
 
 .log-container {
-  border: 1px solid #ebeef5;
+  border: 1px solid var(--border);
   border-radius: 6px;
   max-height: 400px;
   overflow-y: auto;
@@ -1222,7 +1222,7 @@ function logInterfaces(log) {
 .log-empty {
   padding: 24px;
   text-align: center;
-  color: #999;
+  color: var(--text-muted);
 }
 
 .log-list {
@@ -1235,7 +1235,7 @@ function logInterfaces(log) {
   align-items: center;
   gap: 8px;
   padding: 5px 10px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid var(--border-light);
   flex-wrap: wrap;
 }
 
@@ -1244,20 +1244,20 @@ function logInterfaces(log) {
 }
 
 .log-offline-row {
-  background: #fff5f5;
+  background: rgba(248, 81, 73, 0.08);
 }
 
 .log-error-row {
-  background: #fff0f0;
+  background: rgba(248, 81, 73, 0.05);
 }
 
 .log-time {
-  color: #999;
+  color: var(--text-muted);
   white-space: nowrap;
 }
 
 .log-type {
-  color: #409eff;
+  color: var(--accent);
   font-weight: 500;
 }
 
@@ -1266,19 +1266,19 @@ function logInterfaces(log) {
 }
 
 .log-status.online {
-  color: #67c23a;
+  color: var(--online);
 }
 
 .log-status.offline {
-  color: #f56c6c;
+  color: var(--offline);
 }
 
 .log-info {
-  color: #666;
+  color: var(--text-secondary);
 }
 
 .log-error {
-  color: #f56c6c;
+  color: var(--offline);
 }
 
 .log-interfaces {
@@ -1286,15 +1286,15 @@ function logInterfaces(log) {
   margin-top: 4px;
   padding: 8px 10px;
   border-radius: 6px;
-  background: #f8fafc;
-  border: 1px solid #e5e7eb;
-  color: #4b5563;
+  background: var(--bg-hover);
+  border: 1px solid var(--border-light);
+  color: var(--text-secondary);
   line-height: 1.7;
 }
 
 .log-interfaces-title {
   margin-bottom: 4px;
-  color: #303133;
+  color: var(--text-primary);
   font-weight: 600;
 }
 
@@ -1306,7 +1306,7 @@ function logInterfaces(log) {
 
 .iface-name {
   min-width: 90px;
-  color: #2563eb;
+  color: var(--accent);
   font-weight: 600;
 }
 </style>
