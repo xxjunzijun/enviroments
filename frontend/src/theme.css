@@ -220,8 +220,12 @@ body {
 
 /* Descriptions */
 .el-descriptions__label { color: var(--text-secondary) !important; }
-.el-descriptions__cell { border-color: var(--border-light) !important; }
-.el-descriptions__content { color: var(--text-primary) !important; }
+.el-descriptions__cell { border-color: var(--border-light) !important; background: var(--bg-surface) !important; }
+.el-descriptions__content { color: var(--text-primary) !important; background: var(--bg-surface) !important; }
+.el-descriptions .el-descriptions__body { background: var(--bg-surface) !important; color: var(--text-primary) !important; }
+.el-descriptions table { background: var(--bg-surface) !important; }
+.el-descriptions-item__label { color: var(--text-secondary) !important; background: var(--bg-surface) !important; }
+.el-descriptions-item__content { color: var(--text-primary) !important; background: var(--bg-surface) !important; }
 
 /* Popover */
 .el-popover.el-popper { background: var(--bg-card) !important; border: 1px solid var(--border) !important; color: var(--text-primary) !important; }
@@ -268,3 +272,7 @@ body {
 [data-theme="light"] .el-textarea__inner { background: var(--bg-surface) !important; }
 [data-theme="light"] .el-dialog { --el-dialog-bg-color: #ffffff !important; }
 [data-theme="light"] .el-drawer { --el-drawer-bg-color: #ffffff !important; }
+[data-theme="light"] .el-descriptions__cell { background: var(--bg-surface) !important; }
+[data-theme="light"] .el-descriptions__content { background: var(--bg-surface) !important; }
+[data-theme="light"] .el-descriptions-item__label { background: var(--bg-surface) !important; }
+[data-theme="light"] .el-descriptions-item__content { background: var(--bg-surface) !important; }
