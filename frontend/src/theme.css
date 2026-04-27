@@ -195,7 +195,9 @@ body {
 .el-badge__content { background: var(--aurora-green) !important; }
 
 /* Tooltip */
-.el-popper.is-dark { background: var(--bg-card) !important; border: 1px solid var(--border) !important; }
+.el-popper.is-dark { background: var(--bg-card) !important; border: 1px solid var(--border) !important; color: var(--text-primary) !important; }
+.el-tooltip__popper { background: var(--bg-card) !important; border: 1px solid var(--border) !important; color: var(--text-primary) !important; }
+.el-tooltip__popper .el-tooltip__arrow::before { background: var(--bg-card) !important; border-color: var(--border) !important; }
 
 /* Loading */
 .el-loading-mask { background: rgba(13, 17, 23, 0.8) !important; }
