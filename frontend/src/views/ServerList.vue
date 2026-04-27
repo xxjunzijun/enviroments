@@ -125,7 +125,6 @@
         <template #default="{ row }">
           <el-button size="small" type="primary" @click="openDetail(row)">查看详情</el-button>
           <el-button size="small" type="success" @click="openTerminal(row)">Web SSH</el-button>
-          <el-button size="small" type="danger" @click="remove(row)">删除</el-button>
         </template>
       </el-table-column>
       <el-table-column label="收藏" width="70" align="center">

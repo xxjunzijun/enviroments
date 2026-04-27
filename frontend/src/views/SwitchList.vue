@@ -80,7 +80,6 @@
       <el-table-column label="操作" min-width="200" align="center">
         <template #default="{ row }">
           <el-button size="small" type="primary" @click="openDetail(row)">查看详情</el-button>
-          <el-button size="small" type="danger" @click="remove(row)">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
