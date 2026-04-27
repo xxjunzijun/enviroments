@@ -115,7 +115,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import ServerList from './views/ServerList.vue'
 import ServerFavorites from './views/ServerFavorites.vue'
 import SwitchList from './views/SwitchList.vue'
