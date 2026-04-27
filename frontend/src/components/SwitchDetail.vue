@@ -45,6 +45,7 @@
             </el-button>
             <el-button size="small" @click="checkStatus">检测状态</el-button>
             <el-button size="small" @click="openEdit">编辑</el-button>
+            <el-button size="small" type="danger" @click="deleteSwitch">删除</el-button>
           </div>
         </template>
         <el-empty v-else-if="initialLoading" description="加载中…" />
@@ -173,6 +174,18 @@ async function checkStatus() {
 function openEdit() {
   emit('close')
   emit('open-edit', props.switchId)
+}
+
+async function deleteSwitch() {
+  try {
+    await ElMessageBox.confirm('确定删除该交换机？', '确认', { type: 'warning' })
+    await switchApi.delete(props.switchId)
+    ElMessage.success('已删除')
+    emit('switch-updated')
+    emit('close')
+  } catch (e) {
+    if (e !== 'cancel') ElMessage.error('删除失败')
+  }
 }
 
 // ── Logs ─────────────────────────────────────────────────────────────────────────
