@@ -85,6 +85,10 @@ if getattr(sys, 'frozen', False):
     print(f"[Enviroments] FRONTEND_DIST = {FRONTEND_DIST}")
     print(f"[Enviroments] Exists: {os.path.exists(FRONTEND_DIST)}")
 
-    config = uvicorn.Config(app=app, host="0.0.0.0", port=8000, log_level="info")
+    _host = os.environ.get("APP_HOST", "0.0.0.0")
+    _port = int(os.environ.get("APP_PORT", "8000"))
+    print(f"[Enviroments] Listening on {_host}:{_port}")
+
+    config = uvicorn.Config(app=app, host=_host, port=_port, log_level="info")
     server = uvicorn.Server(config)
     asyncio.run(server.serve())
