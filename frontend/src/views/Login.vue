@@ -1,31 +1,32 @@
 <template>
   <div class="login-page">
     <div class="login-card">
-      <h1 class="title">🖥️ Enviroments</h1>
-      <p class="subtitle">服务器与交换机管理平台</p>
+      <div class="login-logo">🖥</div>
+      <h1 class="login-title">Enviroments</h1>
+      <p class="login-sub">服务器与交换机管理平台</p>
 
       <el-tabs v-model="activeTab" class="auth-tabs">
         <el-tab-pane label="登录" name="login">
-          <el-form :model="loginForm" label-width="60" @submit.prevent="doLogin">
-            <el-form-item label="用户名">
-              <el-input v-model="loginForm.username" placeholder="输入用户名" autocomplete="username" />
+          <el-form :model="loginForm" label-width="0" @submit.prevent="doLogin" class="auth-form">
+            <el-form-item>
+              <el-input v-model="loginForm.username" placeholder="用户名" autocomplete="username" size="large" />
             </el-form-item>
-            <el-form-item label="密码">
-              <el-input v-model="loginForm.password" type="password" placeholder="输入密码" show-password autocomplete="current-password" @keyup.enter="doLogin" />
+            <el-form-item>
+              <el-input v-model="loginForm.password" type="password" placeholder="密码" show-password autocomplete="current-password" size="large" @keyup.enter="doLogin" />
             </el-form-item>
-            <el-button type="primary" style="width:100%" :loading="loading" @click="doLogin">登录</el-button>
+            <el-button type="primary" class="auth-submit" :loading="loading" @click="doLogin">登录</el-button>
           </el-form>
         </el-tab-pane>
 
         <el-tab-pane label="注册" name="register">
-          <el-form :model="regForm" label-width="60" @submit.prevent="doRegister">
-            <el-form-item label="用户名">
-              <el-input v-model="regForm.username" placeholder="输入用户名（2-50字符）" autocomplete="username" />
+          <el-form :model="regForm" label-width="0" @submit.prevent="doRegister" class="auth-form">
+            <el-form-item>
+              <el-input v-model="regForm.username" placeholder="用户名（2-50字符）" autocomplete="username" size="large" />
             </el-form-item>
-            <el-form-item label="密码">
-              <el-input v-model="regForm.password" type="password" placeholder="输入密码（至少6位）" show-password autocomplete="new-password" @keyup.enter="doRegister" />
+            <el-form-item>
+              <el-input v-model="regForm.password" type="password" placeholder="密码（至少6位）" show-password autocomplete="new-password" size="large" @keyup.enter="doRegister" />
             </el-form-item>
-            <el-button type="primary" style="width:100%" :loading="loading" @click="doRegister">注册</el-button>
+            <el-button type="primary" class="auth-submit" :loading="loading" @click="doRegister">注册</el-button>
           </el-form>
         </el-tab-pane>
       </el-tabs>
@@ -99,33 +100,73 @@ async function doRegister() {
 <style scoped>
 .login-page {
   min-height: 100vh;
-  background: #1a1a2e;
+  background: var(--bg-base);
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.login-page::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -20%;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(circle, rgba(0, 180, 42, 0.08) 0%, transparent 70%);
+  border-radius: 50%;
 }
 
 .login-card {
-  background: #fff;
-  border-radius: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
   padding: 40px 36px;
   width: 380px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  box-shadow: var(--shadow-lg);
+  position: relative;
+  z-index: 1;
+  animation: fadeIn 0.4s ease;
 }
 
-.title {
+.login-logo {
   text-align: center;
-  font-size: 24px;
+  font-size: 36px;
+  margin-bottom: 8px;
+}
+
+.login-title {
+  text-align: center;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
   margin-bottom: 4px;
-  color: #1a1a2e;
+  letter-spacing: -0.02em;
 }
 
-.subtitle {
+.login-sub {
   text-align: center;
-  color: #999;
+  color: var(--text-muted);
   font-size: 13px;
-  margin-bottom: 24px;
+  margin-bottom: 28px;
 }
 
 .auth-tabs { margin-top: 8px; }
+
+.auth-form :deep(.el-form-item) { margin-bottom: 14px; }
+
+.auth-form :deep(.el-input__wrapper) {
+  border-radius: var(--radius-md) !important;
+  padding: 12px 16px !important;
+}
+
+.auth-submit {
+  width: 100%;
+  height: 42px;
+  font-size: 15px;
+  border-radius: var(--radius-md) !important;
+  margin-top: 4px;
+}
 </style>

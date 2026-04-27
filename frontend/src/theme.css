@@ -1,0 +1,238 @@
+/* ─── Enviroments UI Theme — Aurora Green Dark ──────────────────────────── */
+
+:root {
+  /* Aurora Green Palette (from Ant Design) */
+  --aurora-green:        #00B42A;
+  --aurora-green-light:  #37D839;
+  --aurora-green-lighter: #7FD93C;
+  --aurora-green-dark:    #006B1D;
+  --aurora-green-bg:      #00B42A1a;   /* 10% opacity */
+
+  /* Surface colors */
+  --bg-base:       #0d1117;
+  --bg-surface:    #161b22;
+  --bg-card:       #1c2128;
+  --bg-hover:      #21262d;
+  --bg-active:     #262c36;
+
+  /* Border */
+  --border:        #30363d;
+  --border-light:  #21262d;
+
+  /* Text */
+  --text-primary:  #e6edf3;
+  --text-secondary:#8b949e;
+  --text-muted:    #6e7681;
+
+  /* Accent */
+  --accent:        var(--aurora-green);
+  --accent-light:  var(--aurora-green-light);
+  --accent-glow:   rgba(0, 180, 42, 0.15);
+
+  /* Status */
+  --online:   #37D839;
+  --offline:  #f85149;
+  --warning:  #e3b341;
+
+  /* Shadows */
+  --shadow-sm:  0 1px 3px rgba(0,0,0,0.4);
+  --shadow-md:  0 4px 12px rgba(0,0,0,0.5);
+  --shadow-lg:  0 8px 24px rgba(0,0,0,0.6);
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+
+  /* Transitions */
+  --transition: all 0.2s ease;
+}
+
+/* ─── Base Reset ──────────────────────────────────────────────────────────── */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Inter', 'Noto Sans SC', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── Scrollbar ───────────────────────────────────────────────────────────── */
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ─── Element Plus Overrides ──────────────────────────────────────────────── */
+
+/* Primary color */
+.el-button--primary {
+  --el-button-bg-color: var(--aurora-green) !important;
+  --el-button-border-color: var(--aurora-green) !important;
+  --el-button-hover-bg-color: var(--aurora-green-light) !important;
+  --el-button-hover-border-color: var(--aurora-green-light) !important;
+  --el-button-active-bg-color: var(--aurora-green-dark) !important;
+  --el-button-active-border-color: var(--aurora-green-dark) !important;
+}
+
+/* Success */
+.el-button--success {
+  --el-button-bg-color: #37D839 !important;
+  --el-button-border-color: #37D839 !important;
+}
+
+/* Danger */
+.el-button--danger {
+  --el-button-bg-color: #f85149 !important;
+  --el-button-border-color: #f85149 !important;
+}
+
+/* Text link */
+.el-link--primary { color: var(--aurora-green) !important; }
+
+/* Tabs */
+.el-tabs__item {
+  color: var(--text-secondary) !important;
+}
+.el-tabs__item:hover { color: var(--text-primary) !important; }
+.el-tabs__item.is-active { color: var(--aurora-green) !important; }
+.el-tabs__active-bar { background-color: var(--aurora-green) !important; }
+
+/* Table */
+.el-table {
+  --el-table-border-color: var(--border) !important;
+  --el-table-header-bg-color: var(--bg-surface) !important;
+  --el-table-header-text-color: var(--text-secondary) !important;
+  --el-table-row-hover-bg-color: var(--bg-hover) !important;
+  --el-table-bg-color: transparent !important;
+  --el-table-tr-bg-color: transparent !important;
+  --el-table-text-color: var(--text-primary) !important;
+  background: transparent !important;
+}
+.el-table th.el-table__cell { background: var(--bg-surface) !important; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
+.el-table td.el-table__cell { border-bottom: 1px solid var(--border-light) !important; }
+.el-table__body tr:hover > td.el-table__cell { background: var(--bg-hover) !important; }
+
+/* Dialog */
+.el-dialog {
+  --el-dialog-bg-color: var(--bg-card) !important;
+  --el-dialog-title-font-size: 16px !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-lg) !important;
+}
+.el-dialog__header { border-bottom: 1px solid var(--border-light) !important; }
+.el-dialog__title { color: var(--text-primary) !important; font-weight: 600; }
+.el-dialog__body { color: var(--text-primary) !important; }
+
+/* Drawer */
+.el-drawer {
+  --el-drawer-bg-color: var(--bg-surface) !important;
+  border-left: 1px solid var(--border) !important;
+}
+.el-drawer__header { border-bottom: 1px solid var(--border-light) !important; color: var(--text-primary) !important; font-weight: 600; }
+
+/* Input */
+.el-input__wrapper, .el-textarea__inner {
+  background: var(--bg-surface) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-sm) !important;
+  box-shadow: none !important;
+  color: var(--text-primary) !important;
+}
+.el-input__wrapper:hover, .el-textarea__inner:hover { border-color: var(--aurora-green) !important; }
+.el-input__wrapper.is-focus, .el-textarea__inner:focus { border-color: var(--aurora-green) !important; box-shadow: 0 0 0 2px var(--accent-glow) !important; }
+.el-input__inner { color: var(--text-primary) !important; }
+.el-input__inner::placeholder { color: var(--text-muted) !important; }
+
+/* Select */
+.el-select__wrapper {
+  background: var(--bg-surface) !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: none !important;
+}
+.el-select__wrapper:hover { border-color: var(--aurora-green) !important; }
+.el-select__wrapper.is-focused { border-color: var(--aurora-green) !important; box-shadow: 0 0 0 2px var(--accent-glow) !important; }
+
+/* Dropdown */
+.el-dropdown-menu { background: var(--bg-card) !important; border: 1px solid var(--border) !important; border-radius: var(--radius-md) !important; }
+.el-dropdown-menu__item { color: var(--text-primary) !important; }
+.el-dropdown-menu__item:hover { background: var(--bg-hover) !important; color: var(--aurora-green) !important; }
+
+/* Tag */
+.el-tag { border-radius: 20px !important; border: none !important; font-size: 12px; }
+
+/* Divider */
+.el-divider { border-color: var(--border-light) !important; }
+
+/* Empty */
+.el-empty__description { color: var(--text-muted) !important; }
+
+/* Message */
+.el-message { border: 1px solid var(--border) !important; border-radius: var(--radius-md) !important; }
+
+/* Tag elements in tables */
+.el-tag { background: var(--bg-active) !important; color: var(--text-secondary) !important; border-radius: 20px !important; border: none !important; }
+.el-tag--success { background: rgba(55, 216, 57, 0.15) !important; color: #37D839 !important; }
+.el-tag--danger { background: rgba(248, 81, 73, 0.15) !important; color: #f85149 !important; }
+.el-tag--warning { background: rgba(227, 179, 65, 0.15) !important; color: #e3b341 !important; }
+.el-tag--info { background: var(--bg-active) !important; color: var(--text-secondary) !important; }
+
+/* Form labels */
+.el-form-item__label { color: var(--text-secondary) !important; font-size: 13px; }
+
+/* Pagination */
+.el-pagination { --el-pagination-button-bg-color: var(--bg-surface) !important; --el-pagination-hover-color: var(--aurora-green) !important; }
+
+/* Badge */
+.el-badge__content { background: var(--aurora-green) !important; }
+
+/* Tooltip */
+.el-popper.is-dark { background: var(--bg-card) !important; border: 1px solid var(--border) !important; }
+
+/* Loading */
+.el-loading-mask { background: rgba(13, 17, 23, 0.8) !important; }
+.el-loading-spinner .circular { stroke: var(--aurora-green) !important; }
+
+/* Switch */
+.el-switch.is-checked .el-switch__core { background: var(--aurora-green) !important; border-color: var(--aurora-green) !important; }
+
+/* Checkbox */
+.el-checkbox__input.is-checked .el-checkbox__inner { background: var(--aurora-green) !important; border-color: var(--aurora-green) !important; }
+.el-checkbox__input.is-checked + .el-checkbox__label { color: var(--aurora-green) !important; }
+
+/* Radio */
+.el-radio__input.is-checked .el-radio__inner { background: var(--aurora-green) !important; border-color: var(--aurora-green) !important; }
+.el-radio__input.is-checked + .el-radio__label { color: var(--aurora-green) !important; }
+
+/* Link */
+.el-link { color: var(--aurora-green) !important; }
+.el-link:hover { color: var(--aurora-green-light) !important; }
+
+/* Descriptions */
+.el-descriptions__label { color: var(--text-secondary) !important; }
+.el-descriptions__cell { border-color: var(--border-light) !important; }
+.el-descriptions__content { color: var(--text-primary) !important; }
+
+/* Popover */
+.el-popover.el-popper { background: var(--bg-card) !important; border: 1px solid var(--border) !important; color: var(--text-primary) !important; }
+
+/* ─── Animations ──────────────────────────────────────────────────────────── */
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.fade-in { animation: fadeIn 0.3s ease; }
+.slide-in { animation: slideIn 0.3s ease; }

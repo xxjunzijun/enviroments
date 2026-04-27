@@ -1,6 +1,5 @@
 <template>
-  <div style="overflow-x: auto">
-
+  <div class="server-card fade-in">
     <!-- Toolbar -->
     <div class="toolbar">
       <el-input
@@ -15,7 +14,7 @@
         <el-icon><Plus /></el-icon> 添加服务器
       </el-button>
       <el-button @click="checkAllStatus" :loading="checkingAll">
-        <el-icon><Refresh /></el-icon> 检测全部状态
+        <el-icon><Refresh /></el-icon> 检测全部
       </el-button>
       <el-button :type="showFavoritesOnly ? 'warning' : 'default'" @click="showFavoritesOnly = !showFavoritesOnly">
         {{ showFavoritesOnly ? '显示全部' : '只看收藏' }}
@@ -23,7 +22,7 @@
     </div>
 
     <!-- Server Table -->
-    <el-table :data="filteredServers" stripe border v-loading="loading" class="server-table" style="width: 100%; table-layout: fixed; overflow-x: auto">
+    <el-table :data="filteredServers" v-loading="loading" class="server-table" style="width: 100%; table-layout: fixed; overflow-x: auto">
       <el-table-column label="状态" min-width="80" align="center">
         <template #default="{ row }">
           <el-tag :type="row.is_online ? 'success' : 'danger'" size="small">
@@ -211,6 +210,8 @@ import { Plus, Refresh, Search } from '@element-plus/icons-vue'
 import { servers as serverApi, switches as switchApi, serverSwitchAssoc } from '../api/index.js'
 import ServerDetail from '../components/ServerDetail.vue'
 
+const emit = defineEmits(['stats'])
+
 const loading = ref(false)
 const showAssocDialog = ref(false)
 const savingAssoc = ref(false)
@@ -335,6 +336,11 @@ async function loadServers() {
   try {
     const data = await serverApi.list()
     servers.value = data.servers
+    emit('stats', {
+      total: data.servers.length,
+      online: data.servers.filter(s => s.is_online).length,
+      offline: data.servers.filter(s => !s.is_online).length,
+    })
   } catch {
     ElMessage.error('加载服务器列表失败')
   } finally {
@@ -539,37 +545,48 @@ onMounted(loadServers)
   display: flex;
   gap: 12px;
   margin-bottom: 20px;
+  align-items: center;
+}
+
+.toolbar .el-input { --el-input-bg-color: var(--bg-surface); }
+
+.server-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
 }
 
 .server-table {
-  border-radius: 8px;
-  overflow: hidden;
+  border-radius: 0;
+  --el-table-bg-color: transparent;
 }
 
 .favorite-button {
   border: none;
   background: transparent;
-  color: #c0c4cc;
+  color: var(--text-muted);
   cursor: pointer;
   font-size: 22px;
   line-height: 1;
   padding: 0 4px;
+  transition: var(--transition);
 }
 .favorite-button.active,
 .favorite-button:hover {
-  color: #e6a23c;
+  color: #e3b341;
 }
 
 .tags-cell {
   cursor: pointer;
-  color: #606266;
+  color: var(--text-secondary);
   padding: 2px 6px;
   border-radius: 4px;
-  transition: background 0.2s;
+  transition: var(--transition);
 }
 .tags-cell:hover {
-  background: #f0f9eb;
-  color: #67c23a;
+  background: var(--accent-glow);
+  color: var(--accent);
 }
 
 .desc-cell {
@@ -580,9 +597,7 @@ onMounted(loadServers)
   white-space: nowrap;
 }
 
-.inline-desc-editor {
-  width: 160px;
-}
+.inline-desc-editor { width: 160px; }
 
 .occupy-cell {
   display: flex;
@@ -598,15 +613,10 @@ onMounted(loadServers)
   min-width: 0;
   line-height: 1.15;
 }
-.occupied-by {
-  color: #e6a23c;
-  font-weight: 500;
-}
+.occupied-by { color: var(--warning); font-weight: 500; }
 .occupied-at {
   margin-top: 2px;
-  color: #909399;
+  color: var(--text-muted);
   font-size: 11px;
-  transform: scale(0.95);
-  transform-origin: center;
 }
 </style>

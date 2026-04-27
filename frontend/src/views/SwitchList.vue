@@ -140,6 +140,8 @@ import { switches, serverSwitchAssoc } from '../api/index.js'
 import { servers } from '../api/index.js'
 import SwitchDetail from '../components/SwitchDetail.vue'
 
+const emit = defineEmits(['stats'])
+
 // ── State ────────────────────────────────────────────────────────────────────
 const loading = ref(false)
 const switches_data = ref([])
@@ -212,6 +214,11 @@ async function load() {
   try {
     const data = await switches.list()
     switches_data.value = data.switches
+    emit('stats', {
+      total: data.switches.length,
+      online: data.switches.filter(s => s.is_online).length,
+      offline: data.switches.filter(s => !s.is_online).length,
+    })
   } catch (e) {
     ElMessage.error('加载交换机列表失败')
   } finally {
