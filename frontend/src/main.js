@@ -6,6 +6,10 @@ import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 import App from './App.vue'
 import Login from './views/Login.vue'
 
+// Apply saved theme before mount
+const savedTheme = localStorage.getItem('theme')
+if (savedTheme) document.documentElement.setAttribute('data-theme', savedTheme)
+
 const token = localStorage.getItem('token')
 
 const RootComponent = token ? App : Login

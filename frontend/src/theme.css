@@ -236,3 +236,31 @@ body {
 
 .fade-in { animation: fadeIn 0.3s ease; }
 .slide-in { animation: slideIn 0.3s ease; }
+
+/* ─── Light Theme ──────────────────────────────────────────────────────────── */
+
+[data-theme="light"] {
+  --bg-base:       #f5f6fa;
+  --bg-surface:    #ffffff;
+  --bg-card:       #ffffff;
+  --bg-hover:      #f0f2f6;
+  --bg-active:     #e8eaef;
+
+  --border:        #e2e4e9;
+  --border-light:  #eef0f5;
+
+  --text-primary:  #1a1a2e;
+  --text-secondary:#6b7280;
+  --text-muted:    #9ca3af;
+
+  --accent-glow:   rgba(0, 180, 42, 0.12);
+  --shadow-sm:  0 1px 3px rgba(0,0,0,0.08);
+  --shadow-md:  0 4px 12px rgba(0,0,0,0.1);
+  --shadow-lg:  0 8px 24px rgba(0,0,0,0.14);
+}
+
+[data-theme="light"] .el-table th.el-table__cell { background: var(--bg-surface) !important; }
+[data-theme="light"] .el-input__wrapper,
+[data-theme="light"] .el-textarea__inner { background: var(--bg-surface) !important; }
+[data-theme="light"] .el-dialog { --el-dialog-bg-color: #ffffff !important; }
+[data-theme="light"] .el-drawer { --el-drawer-bg-color: #ffffff !important; }

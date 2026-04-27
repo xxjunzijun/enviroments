@@ -71,6 +71,9 @@
             <span>离线</span>
             <strong>{{ activeTab === 'servers' ? serverOfflineCount : switchOfflineCount }}</strong>
           </div>
+          <button class="theme-toggle" @click="toggleTheme" :title="isDark ? '切换亮色主题' : '切换暗色主题'">
+            {{ isDark ? '☀️' : '🌙' }}
+          </button>
         </div>
       </header>
 
@@ -101,6 +104,7 @@ import StandaloneSSH from './views/StandaloneSSH.vue'
 const activeTab = ref('servers')
 const username = ref(localStorage.getItem('username') || '')
 const sshRoute = ref(null)
+const isDark = ref(localStorage.getItem('theme') !== 'light')
 
 // Stats
 const serverTotal = ref(0)
@@ -127,6 +131,12 @@ function logout() {
   localStorage.removeItem('username')
   localStorage.removeItem('user_id')
   window.location.reload()
+}
+
+function toggleTheme() {
+  isDark.value = !isDark.value
+  localStorage.setItem('theme', isDark.value ? 'dark' : 'light')
+  document.documentElement.setAttribute('data-theme', isDark.value ? 'dark' : 'light')
 }
 
 function parseHash() {
@@ -366,6 +376,22 @@ window.addEventListener('hashchange', () => { sshRoute.value = parseHash() })
 .stat-online .stat-dot { background: var(--online); box-shadow: 0 0 6px var(--online); }
 .stat-offline .stat-dot { background: var(--offline); }
 
+.theme-toggle {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 5px 12px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+}
+.theme-toggle:hover { background: var(--bg-hover); transform: scale(1.05); }
+
 /* Content */
-.content { padding: 24px 28px; }
+.content {
+  padding: 24px 28px;
+  overflow-x: hidden;
+}
 </style>
