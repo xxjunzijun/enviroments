@@ -136,6 +136,8 @@ body {
   border-left: 1px solid var(--border) !important;
 }
 .el-drawer__header { border-bottom: 1px solid var(--border-light) !important; color: var(--text-primary) !important; font-weight: 600; }
+.el-drawer__body { background: var(--bg-surface) !important; color: var(--text-primary) !important; }
+.el-drawer__header .el-drawer__title { color: var(--text-primary) !important; }
 
 /* Input */
 .el-input__wrapper, .el-textarea__inner {

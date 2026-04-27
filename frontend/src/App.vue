@@ -28,7 +28,6 @@
         >
           <span class="nav-icon">🖧</span>
           <span v-if="!sidebarCollapsed">服务器</span>
-          <span v-if="!sidebarCollapsed && serverOnlineCount" class="nav-badge">{{ serverOnlineCount }}</span>
         </button>
 
         <button
@@ -39,7 +38,6 @@
         >
           <span class="nav-icon">🔌</span>
           <span v-if="!sidebarCollapsed">交换机</span>
-          <span v-if="!sidebarCollapsed && switchOnlineCount" class="nav-badge">{{ switchOnlineCount }}</span>
         </button>
 
         <button
@@ -381,6 +379,8 @@ window.addEventListener('hashchange', () => { sshRoute.value = parseHash() })
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  overflow: hidden;
+  min-width: 0;
 }
 
 /* Top bar */
