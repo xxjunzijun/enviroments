@@ -1,6 +1,5 @@
 <template>
-  <div style="overflow-x: auto">
-
+  <div class="switch-card fade-in">
     <!-- Toolbar -->
     <div class="toolbar">
       <el-input
@@ -349,6 +348,13 @@ onMounted(load)
   flex-wrap: wrap;
 }
 
+.switch-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+}
+
 .tags-cell {
   cursor: pointer;
   display: block;
@@ -356,5 +362,5 @@ onMounted(load)
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.tags-cell:hover { color: #409eff; }
+.tags-cell:hover { color: var(--accent); }
 </style>

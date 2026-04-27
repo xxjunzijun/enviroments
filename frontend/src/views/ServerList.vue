@@ -555,6 +555,7 @@ onMounted(loadServers)
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   overflow: hidden;
+  padding: 16px;
 }
 
 .server-table {
